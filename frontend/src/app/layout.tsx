@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { QueryProvider } from "@/providers/query-provider";
+import { AuthProvider } from "@/providers/auth-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { Toaster } from "@/components/ui/sonner";
 import { NavbarShell } from "@/components/layout/navbar-shell";
 import { FooterShell } from "@/components/layout/footer-shell";
 import { PageContainer } from "@/components/layout/page-container";
@@ -30,11 +32,14 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col">
         <QueryProvider>
-          <TooltipProvider>
-            <NavbarShell />
-            <PageContainer>{children}</PageContainer>
-            <FooterShell />
-          </TooltipProvider>
+          <AuthProvider>
+            <TooltipProvider>
+              <NavbarShell />
+              <PageContainer>{children}</PageContainer>
+              <FooterShell />
+            </TooltipProvider>
+            <Toaster />
+          </AuthProvider>
         </QueryProvider>
       </body>
     </html>

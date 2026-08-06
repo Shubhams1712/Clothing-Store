@@ -34,6 +34,11 @@ try
     app.UseHttpsRedirection();
     app.UseCors("AllowFrontend");
 
+    app.UseAuthentication();
+    app.UseAuthorization();
+
+    app.UseRateLimiter();
+
     app.MapControllers();
     app.MapHealthChecks("/health");
 
