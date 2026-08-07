@@ -1,35 +1,35 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminApi } from "@/services/admin";
-import type { Customer, PaginatedResponse } from "@/types/admin";
+import type { Customer } from "@/types/admin";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Search, Eye, UserX, UserCheck } from "lucide-react";
 import { toast } from "sonner";
 
 export default function AdminCustomersPage() {
-  const [data, setData] = useState<PaginatedResponse<Customer> | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [detailCustomer, setDetailCustomer] = useState<Customer | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try { setData(await adminApi.customers.list({ page, pageSize: 10, search })); } finally { setLoading(false); }
-  }, [page, search]);
+  const { data, isLoading } = useQuery({
+    queryKey: ["admin-customers", page, search],
+    queryFn: () => adminApi.customers.list({ page, pageSize: 10, search }),
+  });
 
-  useEffect(() => { load(); }, [load]);
-
-  const handleToggleActive = async (id: string) => {
-    try { await adminApi.customers.toggleActive(id); toast.success("Customer status updated"); load(); } catch { toast.error("Failed"); }
-  };
+  const toggleMutation = useMutation({
+    mutationFn: (id: string) => adminApi.customers.toggleActive(id),
+    onSuccess: () => { toast.success("Customer status updated"); queryClient.invalidateQueries({ queryKey: ["admin-customers"] }); },
+    onError: () => { toast.error("Failed"); },
+  });
 
   return (
     <div className="space-y-6">
@@ -42,7 +42,7 @@ export default function AdminCustomersPage() {
               <Input placeholder="Search customers..." value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} className="pl-9" />
             </div>
           </div>
-          {loading ? <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}</div> : (
+          {isLoading ? <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}</div> : (
             <>
               <Table>
                 <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Email</TableHead><TableHead>Orders</TableHead><TableHead>Spent</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
@@ -57,7 +57,7 @@ export default function AdminCustomersPage() {
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDetailCustomer(c)}><Eye className="h-4 w-4" /></Button>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleToggleActive(c.id)}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => toggleMutation.mutate(c.id)}>
                             {c.isActive ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
                           </Button>
                         </div>

@@ -14,13 +14,12 @@ import { useAuth } from "@/hooks/use-auth";
 
 export default function AdminSettingsPage() {
   const { user } = useAuth();
-  const [settings, setSettings] = useState<StoreSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<Partial<StoreSettings>>({});
 
   useEffect(() => {
-    adminApi.settings.get().then(s => { setSettings(s); setForm(s); }).finally(() => setLoading(false));
+    adminApi.settings.get().then(s => { setForm(s); }).finally(() => setLoading(false));
   }, []);
 
   const handleSave = async () => {

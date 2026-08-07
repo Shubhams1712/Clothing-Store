@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminApi } from "@/services/admin";
-import type { Category, PaginatedResponse } from "@/types/admin";
+import type { Category } from "@/types/admin";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,38 +14,40 @@ import { Plus, Search, Trash2, Edit } from "lucide-react";
 import { toast } from "sonner";
 
 export default function AdminCategoriesPage() {
-  const [data, setData] = useState<PaginatedResponse<Category> | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [editItem, setEditItem] = useState<Category | null>(null);
   const [form, setForm] = useState({ name: "", slug: "", description: "" });
-  const [saving, setSaving] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try { setData(await adminApi.categories.list({ page, pageSize: 10, search })); } finally { setLoading(false); }
-  }, [page, search]);
+  const { data, isLoading } = useQuery({
+    queryKey: ["admin-categories", page, search],
+    queryFn: () => adminApi.categories.list({ page, pageSize: 10, search }),
+  });
 
-  useEffect(() => { load(); }, [load]);
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => adminApi.categories.delete(id),
+    onSuccess: () => { toast.success("Category deleted"); setDeleteId(null); queryClient.invalidateQueries({ queryKey: ["admin-categories"] }); },
+    onError: () => { toast.error("Failed to delete"); },
+  });
 
-  const handleDelete = async () => {
-    if (!deleteId) return;
-    setDeleting(true);
-    try { await adminApi.categories.delete(deleteId); toast.success("Category deleted"); setDeleteId(null); load(); } catch { toast.error("Failed to delete"); } finally { setDeleting(false); }
-  };
+  const saveMutation = useMutation({
+    mutationFn: (payload: { id?: string; data: typeof form }) =>
+      payload.id ? adminApi.categories.update(payload.id, payload.data) : adminApi.categories.create(payload.data),
+    onSuccess: (_, payload) => {
+      toast.success(payload.id ? "Category updated" : "Category created");
+      setFormOpen(false); setEditItem(null); setForm({ name: "", slug: "", description: "" });
+      queryClient.invalidateQueries({ queryKey: ["admin-categories"] });
+    },
+    onError: () => { toast.error("Failed to save"); },
+  });
 
-  const handleSave = async () => {
+  const handleDelete = () => { if (deleteId) deleteMutation.mutate(deleteId); };
+  const handleSave = () => {
     if (!form.name || !form.slug) { toast.error("Name and slug required"); return; }
-    setSaving(true);
-    try {
-      if (editItem) { await adminApi.categories.update(editItem.id, form); toast.success("Category updated"); }
-      else { await adminApi.categories.create(form); toast.success("Category created"); }
-      setFormOpen(false); setEditItem(null); setForm({ name: "", slug: "", description: "" }); load();
-    } catch { toast.error("Failed to save"); } finally { setSaving(false); }
+    saveMutation.mutate({ id: editItem?.id, data: form });
   };
 
   const openEdit = (cat: Category) => { setEditItem(cat); setForm({ name: cat.name, slug: cat.slug, description: cat.description || "" }); setFormOpen(true); };
@@ -66,7 +69,7 @@ export default function AdminCategoriesPage() {
             </div>
           </div>
 
-          {loading ? <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}</div> : (
+          {isLoading ? <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}</div> : (
             <>
               <Table>
                 <TableHeader>
@@ -120,7 +123,7 @@ export default function AdminCategoriesPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setFormOpen(false)}>Cancel</Button>
-            <Button onClick={handleSave} disabled={saving}>{saving ? "Saving..." : "Save"}</Button>
+            <Button onClick={handleSave} disabled={saveMutation.isPending}>{saveMutation.isPending ? "Saving..." : "Save"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -131,7 +134,7 @@ export default function AdminCategoriesPage() {
           <p>Are you sure? This cannot be undone.</p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteId(null)}>Cancel</Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>{deleting ? "Deleting..." : "Delete"}</Button>
+            <Button variant="destructive" onClick={handleDelete} disabled={deleteMutation.isPending}>{deleteMutation.isPending ? "Deleting..." : "Delete"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

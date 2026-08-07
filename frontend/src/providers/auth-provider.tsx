@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useCallback, useEffect, useState } from "react";
+import React, { createContext, useCallback, useEffect, useState, startTransition } from "react";
 import type { User, AuthState } from "@/types/auth";
 import { authApi } from "@/services/auth";
 
@@ -57,10 +57,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const { user } = getStoredAuth();
-    setState({
-      user,
-      isAuthenticated: !!user,
-      isLoading: false,
+    startTransition(() => {
+      setState({
+        user,
+        isAuthenticated: !!user,
+        isLoading: false,
+      });
     });
   }, []);
 

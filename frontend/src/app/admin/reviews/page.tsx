@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminApi } from "@/services/admin";
-import type { Review, PaginatedResponse } from "@/types/admin";
+import type { Review } from "@/types/admin";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,40 +16,38 @@ import { Search, Check, X, MessageSquare, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 export default function AdminReviewsPage() {
-  const [data, setData] = useState<PaginatedResponse<Review> | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [filter, setFilter] = useState<string>("all");
   const [replyReview, setReplyReview] = useState<Review | null>(null);
   const [replyText, setReplyText] = useState("");
-  const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const isApproved = filter === "approved" ? true : filter === "pending" ? false : undefined;
-      setData(await adminApi.reviews.list({ page, pageSize: 10, search, isApproved }));
-    } finally { setLoading(false); }
-  }, [page, search, filter]);
+  const isApproved = filter === "approved" ? true : filter === "pending" ? false : undefined;
 
-  useEffect(() => { load(); }, [load]);
+  const { data, isLoading } = useQuery({
+    queryKey: ["admin-reviews", page, search, filter],
+    queryFn: () => adminApi.reviews.list({ page, pageSize: 10, search, isApproved }),
+  });
 
-  const handleApprove = async (id: string, approved: boolean) => {
-    try { await adminApi.reviews.update(id, { isApproved: approved, isHidden: false }); toast.success(approved ? "Approved" : "Hidden"); load(); } catch { toast.error("Failed"); }
-  };
+  const approveMutation = useMutation({
+    mutationFn: (payload: { id: string; approved: boolean }) => adminApi.reviews.update(payload.id, { isApproved: payload.approved, isHidden: false }),
+    onSuccess: () => { toast.success("Updated"); queryClient.invalidateQueries({ queryKey: ["admin-reviews"] }); },
+    onError: () => { toast.error("Failed"); },
+  });
 
-  const handleReply = async () => {
-    if (!replyReview || !replyText.trim()) return;
-    setSaving(true);
-    try { await adminApi.reviews.reply(replyReview.id, { adminReply: replyText }); toast.success("Reply added"); setReplyReview(null); setReplyText(""); load(); } catch { toast.error("Failed"); } finally { setSaving(false); }
-  };
+  const replyMutation = useMutation({
+    mutationFn: (payload: { id: string; adminReply: string }) => adminApi.reviews.reply(payload.id, { adminReply: payload.adminReply }),
+    onSuccess: () => { toast.success("Reply added"); setReplyReview(null); setReplyText(""); queryClient.invalidateQueries({ queryKey: ["admin-reviews"] }); },
+    onError: () => { toast.error("Failed"); },
+  });
 
-  const handleDelete = async () => {
-    if (!deleteId) return;
-    try { await adminApi.reviews.delete(deleteId); toast.success("Deleted"); setDeleteId(null); load(); } catch { toast.error("Failed"); }
-  };
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => adminApi.reviews.delete(id),
+    onSuccess: () => { toast.success("Deleted"); setDeleteId(null); queryClient.invalidateQueries({ queryKey: ["admin-reviews"] }); },
+    onError: () => { toast.error("Failed"); },
+  });
 
   return (
     <div className="space-y-6">
@@ -68,7 +67,7 @@ export default function AdminReviewsPage() {
               </TabsList>
             </Tabs>
           </div>
-          {loading ? <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}</div> : (
+          {isLoading ? <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}</div> : (
             <>
               <Table>
                 <TableHeader><TableRow><TableHead>Product</TableHead><TableHead>Customer</TableHead><TableHead>Rating</TableHead><TableHead>Title</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
@@ -87,12 +86,12 @@ export default function AdminReviewsPage() {
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
                           {!r.isApproved && (
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600" onClick={() => handleApprove(r.id, true)}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-green-600" onClick={() => approveMutation.mutate({ id: r.id, approved: true })}>
                               <Check className="h-4 w-4" />
                             </Button>
                           )}
                           {r.isApproved && (
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleApprove(r.id, false)}>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => approveMutation.mutate({ id: r.id, approved: false })}>
                               <X className="h-4 w-4" />
                             </Button>
                           )}
@@ -135,7 +134,7 @@ export default function AdminReviewsPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setReplyReview(null)}>Cancel</Button>
-            <Button onClick={handleReply} disabled={saving || !replyText.trim()}>{saving ? "Saving..." : "Reply"}</Button>
+            <Button onClick={() => { if (replyReview) replyMutation.mutate({ id: replyReview.id, adminReply: replyText }); }} disabled={replyMutation.isPending || !replyText.trim()}>{replyMutation.isPending ? "Saving..." : "Reply"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -146,7 +145,7 @@ export default function AdminReviewsPage() {
           <p>Are you sure?</p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteId(null)}>Cancel</Button>
-            <Button variant="destructive" onClick={handleDelete}>Delete</Button>
+            <Button variant="destructive" onClick={() => { if (deleteId) deleteMutation.mutate(deleteId); }} disabled={deleteMutation.isPending}>Delete</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

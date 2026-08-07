@@ -30,6 +30,7 @@ public static class DependencyInjection
         services.AddScoped<IUserService, UserService>();
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<IAdminService, AdminService>();
+        services.AddScoped<IStorefrontService, StorefrontService>();
 
         return services;
     }

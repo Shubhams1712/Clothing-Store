@@ -1,11 +1,11 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState, startTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { authApi } from "@/services/auth";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { CheckCircle, XCircle } from "lucide-react";
 
 function VerifyEmailContent() {
@@ -17,20 +17,26 @@ function VerifyEmailContent() {
 
   useEffect(() => {
     if (!token || !email) {
-      setStatus("error");
-      setMessage("Invalid verification link");
+      startTransition(() => {
+        setStatus("error");
+        setMessage("Invalid verification link");
+      });
       return;
     }
 
     authApi
       .verifyEmail({ token, email })
       .then(() => {
-        setStatus("success");
-        setMessage("Email verified successfully!");
+        startTransition(() => {
+          setStatus("success");
+          setMessage("Email verified successfully!");
+        });
       })
       .catch((err) => {
-        setStatus("error");
-        setMessage(err instanceof Error ? err.message : "Verification failed");
+        startTransition(() => {
+          setStatus("error");
+          setMessage(err instanceof Error ? err.message : "Verification failed");
+        });
       });
   }, [token, email]);
 

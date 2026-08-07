@@ -1,64 +1,42 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminApi } from "@/services/admin";
-import type { Product, PaginatedResponse } from "@/types/admin";
+import type { Product } from "@/types/admin";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Search, Trash2, Eye, EyeOff, Edit } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 
 export default function AdminProductsPage() {
-  const [data, setData] = useState<PaginatedResponse<Product> | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const result = await adminApi.products.list({ page, pageSize: 10, search });
-      setData(result);
-    } finally {
-      setLoading(false);
-    }
-  }, [page, search]);
+  const { data, isLoading } = useQuery({
+    queryKey: ["admin-products", page, search],
+    queryFn: () => adminApi.products.list({ page, pageSize: 10, search }),
+  });
 
-  useEffect(() => { load(); }, [load]);
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => adminApi.products.delete(id),
+    onSuccess: () => { toast.success("Product deleted"); setDeleteId(null); queryClient.invalidateQueries({ queryKey: ["admin-products"] }); },
+    onError: () => { toast.error("Failed to delete product"); },
+  });
 
-  const handleDelete = async () => {
-    if (!deleteId) return;
-    setDeleting(true);
-    try {
-      await adminApi.products.delete(deleteId);
-      toast.success("Product deleted");
-      setDeleteId(null);
-      load();
-    } catch {
-      toast.error("Failed to delete product");
-    } finally {
-      setDeleting(false);
-    }
-  };
-
-  const handleTogglePublish = async (id: string) => {
-    try {
-      await adminApi.products.togglePublish(id);
-      toast.success("Product status toggled");
-      load();
-    } catch {
-      toast.error("Failed to toggle status");
-    }
-  };
+  const toggleMutation = useMutation({
+    mutationFn: (id: string) => adminApi.products.togglePublish(id),
+    onSuccess: () => { toast.success("Product status toggled"); queryClient.invalidateQueries({ queryKey: ["admin-products"] }); },
+    onError: () => { toast.error("Failed to toggle status"); },
+  });
 
   return (
     <div className="space-y-6">
@@ -86,7 +64,7 @@ export default function AdminProductsPage() {
             </div>
           </div>
 
-          {loading ? (
+          {isLoading ? (
             <div className="space-y-2">
               {[1, 2, 3, 4, 5].map((i) => (
                 <Skeleton key={i} className="h-12 w-full" />
@@ -106,7 +84,7 @@ export default function AdminProductsPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {data?.items.map((product) => (
+                  {data?.items.map((product: Product) => (
                     <TableRow key={product.id}>
                       <TableCell className="font-medium">{product.name}</TableCell>
                       <TableCell>{product.sku}</TableCell>
@@ -127,7 +105,7 @@ export default function AdminProductsPage() {
                               <Edit className="h-4 w-4" />
                             </Button>
                           </Link>
-                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleTogglePublish(product.id)}>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => toggleMutation.mutate(product.id)}>
                             {product.isPublished ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                           </Button>
                           <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => setDeleteId(product.id)}>
@@ -175,8 +153,8 @@ export default function AdminProductsPage() {
           <p>Are you sure you want to delete this product? This action cannot be undone.</p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteId(null)}>Cancel</Button>
-            <Button variant="destructive" onClick={handleDelete} disabled={deleting}>
-              {deleting ? "Deleting..." : "Delete"}
+            <Button variant="destructive" onClick={() => { if (deleteId) deleteMutation.mutate(deleteId); }} disabled={deleteMutation.isPending}>
+              {deleteMutation.isPending ? "Deleting..." : "Delete"}
             </Button>
           </DialogFooter>
         </DialogContent>

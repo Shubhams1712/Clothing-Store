@@ -1,14 +1,15 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminApi } from "@/services/admin";
-import type { Order, PaginatedResponse, OrderStatus } from "@/types/admin";
+import type { Order, OrderStatus } from "@/types/admin";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Search, Eye } from "lucide-react";
@@ -21,26 +22,22 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function AdminOrdersPage() {
-  const [data, setData] = useState<PaginatedResponse<Order> | null>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [detailOrder, setDetailOrder] = useState<Order | null>(null);
   const [newStatus, setNewStatus] = useState<OrderStatus>("Pending");
-  const [updating, setUpdating] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try { setData(await adminApi.orders.list({ page, pageSize: 10, search })); } finally { setLoading(false); }
-  }, [page, search]);
+  const { data, isLoading } = useQuery({
+    queryKey: ["admin-orders", page, search],
+    queryFn: () => adminApi.orders.list({ page, pageSize: 10, search }),
+  });
 
-  useEffect(() => { load(); }, [load]);
-
-  const handleStatusUpdate = async () => {
-    if (!detailOrder) return;
-    setUpdating(true);
-    try { await adminApi.orders.updateStatus(detailOrder.id, { status: newStatus }); toast.success("Status updated"); setDetailOrder(null); load(); } catch { toast.error("Failed"); } finally { setUpdating(false); }
-  };
+  const statusMutation = useMutation({
+    mutationFn: (payload: { id: string; status: OrderStatus }) => adminApi.orders.updateStatus(payload.id, { status: payload.status }),
+    onSuccess: () => { toast.success("Status updated"); setDetailOrder(null); queryClient.invalidateQueries({ queryKey: ["admin-orders"] }); },
+    onError: () => { toast.error("Failed"); },
+  });
 
   const openDetail = (order: Order) => { setDetailOrder(order); setNewStatus(order.status); };
 
@@ -55,7 +52,7 @@ export default function AdminOrdersPage() {
               <Input placeholder="Search orders..." value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} className="pl-9" />
             </div>
           </div>
-          {loading ? <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}</div> : (
+          {isLoading ? <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}</div> : (
             <>
               <Table>
                 <TableHeader><TableRow><TableHead>Order #</TableHead><TableHead>Customer</TableHead><TableHead>Total</TableHead><TableHead>Status</TableHead><TableHead>Date</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
@@ -115,8 +112,8 @@ export default function AdminOrdersPage() {
                     {ORDER_STATUSES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                   </SelectContent>
                 </Select>
-                <Button size="sm" onClick={handleStatusUpdate} disabled={updating || newStatus === detailOrder.status}>
-                  {updating ? "Updating..." : "Update"}
+                <Button size="sm" onClick={() => statusMutation.mutate({ id: detailOrder.id, status: newStatus })} disabled={statusMutation.isPending || newStatus === detailOrder.status}>
+                  {statusMutation.isPending ? "Updating..." : "Update"}
                 </Button>
               </div>
             </div>

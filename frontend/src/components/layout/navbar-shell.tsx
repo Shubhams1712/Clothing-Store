@@ -1,9 +1,9 @@
 "use client";
 
-import { Store, LogOut, User } from "lucide-react";
+import { Store, LogOut, User, ShoppingBag, Search } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,15 +29,35 @@ export function NavbarShell() {
           <Link href="/collections" className="transition-colors hover:text-foreground/80">
             Collections
           </Link>
+          <Link href="/new-arrivals" className="transition-colors hover:text-foreground/80">
+            New Arrivals
+          </Link>
+          <Link href="/best-sellers" className="transition-colors hover:text-foreground/80">
+            Best Sellers
+          </Link>
         </nav>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
+          <Link
+            href="/search"
+            className={buttonVariants({ variant: "ghost", size: "icon" })}
+          >
+            <Search className="h-5 w-5" />
+            <span className="sr-only">Search</span>
+          </Link>
+          <button
+            type="button"
+            className={buttonVariants({ variant: "ghost", size: "icon" })}
+          >
+            <ShoppingBag className="h-5 w-5" />
+            <span className="sr-only">Cart</span>
+          </button>
           {isAuthenticated ? (
             <DropdownMenu>
-              <DropdownMenuTrigger>
-                <Button variant="ghost" size="icon">
-                  <User className="h-5 w-5" />
-                  <span className="sr-only">Account menu</span>
-                </Button>
+              <DropdownMenuTrigger
+                className={buttonVariants({ variant: "ghost", size: "icon" })}
+              >
+                <User className="h-5 w-5" />
+                <span className="sr-only">Account menu</span>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <div className="px-2 py-1.5 text-sm font-medium">
@@ -48,7 +68,11 @@ export function NavbarShell() {
                 </div>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem>Profile</DropdownMenuItem>
-                {user?.isAdmin && <DropdownMenuItem>Admin Panel</DropdownMenuItem>}
+                {user?.isAdmin && (
+                  <DropdownMenuItem render={<Link href="/admin" />}>
+                    Admin Panel
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => logout()}>
                   <LogOut className="mr-2 h-4 w-4" />
@@ -57,10 +81,11 @@ export function NavbarShell() {
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
-            <Link href="/login">
-              <Button variant="ghost" size="sm">
-                Sign in
-              </Button>
+            <Link
+              href="/login"
+              className={buttonVariants({ variant: "ghost", size: "sm" })}
+            >
+              Sign in
             </Link>
           )}
         </div>

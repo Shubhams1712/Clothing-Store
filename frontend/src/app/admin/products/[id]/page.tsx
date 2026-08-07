@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { adminApi } from "@/services/admin";
-import type { Product, Category } from "@/types/admin";
+import type { Category } from "@/types/admin";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -79,7 +79,7 @@ export default function AdminProductFormPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-4">
-        <Link href="/admin/products"><Button variant="ghost" size="icon"><ArrowLeft className="h-4 w-4" /></Button></Link>
+        <Link href="/admin/products" className={buttonVariants({ variant: "ghost", size: "icon" })}><ArrowLeft className="h-4 w-4" /></Link>
         <h1 className="text-2xl font-bold">{isNew ? "Create Product" : "Edit Product"}</h1>
       </div>
 
@@ -200,7 +200,7 @@ export default function AdminProductFormPage() {
         </Card>
 
         <div className="flex justify-end gap-4">
-          <Link href="/admin/products"><Button type="button" variant="outline">Cancel</Button></Link>
+          <Link href="/admin/products" className={buttonVariants({ variant: "outline" })}>Cancel</Link>
           <Button type="submit" disabled={saving}>{saving ? "Saving..." : isNew ? "Create Product" : "Update Product"}</Button>
         </div>
       </form>

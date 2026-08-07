@@ -89,6 +89,7 @@ api.interceptors.response.use(
 
       if (!refreshToken) {
         clearStoredAuth();
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
         window.location.href = "/login";
         return Promise.reject(error);
       }
@@ -113,6 +114,7 @@ api.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError, null);
         clearStoredAuth();
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
         window.location.href = "/login";
         return Promise.reject(refreshError);
       } finally {
