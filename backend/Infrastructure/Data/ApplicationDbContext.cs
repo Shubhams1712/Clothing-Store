@@ -19,6 +19,17 @@ public class ApplicationDbContext : DbContext
     public DbSet<EmailVerificationToken> EmailVerificationTokens => Set<EmailVerificationToken>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+    public DbSet<Product> Products => Set<Product>();
+    public DbSet<ProductVariant> ProductVariants => Set<ProductVariant>();
+    public DbSet<ProductImage> ProductImages => Set<ProductImage>();
+    public DbSet<Category> Categories => Set<Category>();
+    public DbSet<Collection> Collections => Set<Collection>();
+    public DbSet<CollectionProduct> CollectionProducts => Set<CollectionProduct>();
+    public DbSet<Order> Orders => Set<Order>();
+    public DbSet<OrderItem> OrderItems => Set<OrderItem>();
+    public DbSet<Coupon> Coupons => Set<Coupon>();
+    public DbSet<Review> Reviews => Set<Review>();
+    public DbSet<StoreSettings> StoreSettings => Set<StoreSettings>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -85,6 +96,162 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Details).HasMaxLength(1000);
             entity.Property(e => e.IpAddress).HasMaxLength(45);
             entity.Property(e => e.UserAgent).HasMaxLength(500);
+        });
+
+        modelBuilder.Entity<Product>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Slug).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Description).HasMaxLength(2000);
+            entity.Property(e => e.ShortDescription).HasMaxLength(500);
+            entity.Property(e => e.Sku).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Price).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.ComparePrice).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.CostPrice).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.Brand).HasMaxLength(100);
+            entity.Property(e => e.Tags).HasMaxLength(500);
+            entity.Property(e => e.SeoTitle).HasMaxLength(200);
+            entity.Property(e => e.SeoDescription).HasMaxLength(500);
+            entity.HasIndex(e => e.Slug).IsUnique();
+            entity.HasIndex(e => e.Sku).IsUnique();
+            entity.HasOne(e => e.Category).WithMany(c => c.Products).HasForeignKey(e => e.CategoryId);
+        });
+
+        modelBuilder.Entity<ProductVariant>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Size).HasMaxLength(50);
+            entity.Property(e => e.Color).HasMaxLength(50);
+            entity.Property(e => e.Sku).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Price).HasColumnType("decimal(18,2)");
+            entity.HasIndex(e => e.Sku).IsUnique();
+            entity.HasOne(e => e.Product).WithMany(p => p.Variants).HasForeignKey(e => e.ProductId);
+        });
+
+        modelBuilder.Entity<ProductImage>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Url).IsRequired().HasMaxLength(1000);
+            entity.Property(e => e.AltText).HasMaxLength(200);
+            entity.HasOne(e => e.Product).WithMany(p => p.Images).HasForeignKey(e => e.ProductId);
+        });
+
+        modelBuilder.Entity<Category>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Slug).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.ImageUrl).HasMaxLength(1000);
+            entity.HasIndex(e => e.Slug).IsUnique();
+            entity.HasOne(e => e.Parent).WithMany(c => c.Children).HasForeignKey(e => e.ParentId);
+        });
+
+        modelBuilder.Entity<Collection>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Slug).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.ImageUrl).HasMaxLength(1000);
+            entity.HasIndex(e => e.Slug).IsUnique();
+        });
+
+        modelBuilder.Entity<CollectionProduct>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasOne(e => e.Collection).WithMany(c => c.CollectionProducts).HasForeignKey(e => e.CollectionId);
+            entity.HasOne(e => e.Product).WithMany(p => p.CollectionProducts).HasForeignKey(e => e.ProductId);
+            entity.HasIndex(e => new { e.CollectionId, e.ProductId }).IsUnique();
+        });
+
+        modelBuilder.Entity<Order>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.OrderNumber).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.SubTotal).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.TaxAmount).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.ShippingAmount).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.DiscountAmount).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.TotalAmount).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.Currency).HasMaxLength(10);
+            entity.Property(e => e.ShippingName).HasMaxLength(200);
+            entity.Property(e => e.ShippingAddress).HasMaxLength(500);
+            entity.Property(e => e.ShippingCity).HasMaxLength(100);
+            entity.Property(e => e.ShippingState).HasMaxLength(100);
+            entity.Property(e => e.ShippingPostalCode).HasMaxLength(20);
+            entity.Property(e => e.ShippingCountry).HasMaxLength(100);
+            entity.Property(e => e.ShippingPhone).HasMaxLength(20);
+            entity.Property(e => e.PaymentMethod).HasMaxLength(50);
+            entity.Property(e => e.PaymentStatus).HasMaxLength(50);
+            entity.Property(e => e.PaymentId).HasMaxLength(200);
+            entity.Property(e => e.Notes).HasMaxLength(1000);
+            entity.Property(e => e.InternalNotes).HasMaxLength(1000);
+            entity.HasIndex(e => e.OrderNumber).IsUnique();
+            entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId);
+        });
+
+        modelBuilder.Entity<OrderItem>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ProductName).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Sku).HasMaxLength(100);
+            entity.Property(e => e.UnitPrice).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.TotalPrice).HasColumnType("decimal(18,2)");
+            entity.HasOne(e => e.Order).WithMany(o => o.Items).HasForeignKey(e => e.OrderId);
+            entity.HasOne(e => e.Product).WithMany().HasForeignKey(e => e.ProductId);
+            entity.HasOne(e => e.ProductVariant).WithMany().HasForeignKey(e => e.ProductVariantId);
+        });
+
+        modelBuilder.Entity<Coupon>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Code).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.Value).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.MinimumOrderAmount).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.MaximumDiscountAmount).HasColumnType("decimal(18,2)");
+            entity.HasIndex(e => e.Code).IsUnique();
+        });
+
+        modelBuilder.Entity<Review>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Comment).HasMaxLength(2000);
+            entity.Property(e => e.AdminReply).HasMaxLength(2000);
+            entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId);
+            entity.HasOne(e => e.Product).WithMany().HasForeignKey(e => e.ProductId);
+        });
+
+        modelBuilder.Entity<StoreSettings>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.StoreName).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.StoreDescription).HasMaxLength(2000);
+            entity.Property(e => e.ContactEmail).HasMaxLength(256);
+            entity.Property(e => e.ContactPhone).HasMaxLength(20);
+            entity.Property(e => e.Address).HasMaxLength(500);
+            entity.Property(e => e.Currency).HasMaxLength(10);
+            entity.Property(e => e.CurrencySymbol).HasMaxLength(10);
+            entity.Property(e => e.TaxRate).HasMaxLength(20);
+            entity.Property(e => e.ShippingPolicy).HasMaxLength(2000);
+            entity.Property(e => e.ReturnPolicy).HasMaxLength(2000);
+            entity.Property(e => e.PrivacyPolicy).HasMaxLength(5000);
+            entity.Property(e => e.TermsOfService).HasMaxLength(5000);
+            entity.Property(e => e.LogoUrl).HasMaxLength(1000);
+            entity.Property(e => e.FaviconUrl).HasMaxLength(1000);
+            entity.Property(e => e.PrimaryColor).HasMaxLength(20);
+            entity.Property(e => e.SocialFacebook).HasMaxLength(500);
+            entity.Property(e => e.SocialInstagram).HasMaxLength(500);
+            entity.Property(e => e.SocialTwitter).HasMaxLength(500);
+            entity.Property(e => e.SocialYoutube).HasMaxLength(500);
+            entity.Property(e => e.RazorpayKeyId).HasMaxLength(200);
+            entity.Property(e => e.RazorpayKeySecret).HasMaxLength(500);
+            entity.Property(e => e.CloudinaryCloudName).HasMaxLength(200);
+            entity.Property(e => e.CloudinaryApiKey).HasMaxLength(200);
+            entity.Property(e => e.CloudinaryApiSecret).HasMaxLength(500);
         });
 
         SeedRoles(modelBuilder);

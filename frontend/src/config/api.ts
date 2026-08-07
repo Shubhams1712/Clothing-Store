@@ -17,5 +17,17 @@ export const API_CONFIG = {
       ME: "/api/users/me",
       CHANGE_PASSWORD: "/api/users/change-password",
     },
+    ADMIN: {
+      DASHBOARD: "/api/admin/dashboard",
+      PRODUCTS: "/api/admin/products",
+      CATEGORIES: "/api/admin/categories",
+      COLLECTIONS: "/api/admin/collections",
+      ORDERS: "/api/admin/orders",
+      CUSTOMERS: "/api/admin/customers",
+      COUPONS: "/api/admin/coupons",
+      REVIEWS: "/api/admin/reviews",
+      SETTINGS: "/api/admin/settings",
+      INVENTORY: "/api/admin/inventory",
+    },
   },
 } as const;
