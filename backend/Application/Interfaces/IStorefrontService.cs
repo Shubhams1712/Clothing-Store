@@ -21,4 +21,10 @@ public interface IStorefrontService
     Task<PaginatedResponse<StorefrontReviewResponse>> GetProductReviewsAsync(Guid productId, int page = 1, int pageSize = 10, string? sortBy = null);
     Task<StorefrontRatingDistribution> GetProductRatingDistributionAsync(Guid productId);
     Task<StorefrontReviewResponse?> CreateProductReviewAsync(Guid productId, Guid userId, CreateStorefrontReviewRequest request);
+    Task<List<AddressResponse>> GetAddressesAsync(Guid userId);
+    Task<AddressResponse?> CreateAddressAsync(Guid userId, CreateAddressRequest request);
+    Task<AddressResponse?> UpdateAddressAsync(Guid userId, Guid addressId, CreateAddressRequest request);
+    Task<bool> DeleteAddressAsync(Guid userId, Guid addressId);
+    Task<CouponApplyResponse> ApplyCouponAsync(ApplyCouponRequest request);
+    Task<CheckoutReviewResponse> ReviewCheckoutAsync(Guid userId, CheckoutReviewRequest request);
 }

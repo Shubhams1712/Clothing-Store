@@ -350,6 +350,259 @@ public class StorefrontService : IStorefrontService
         };
     }
 
+    public async Task<List<AddressResponse>> GetAddressesAsync(Guid userId)
+    {
+        return await _context.Addresses
+            .Where(a => a.UserId == userId && a.IsActive)
+            .OrderByDescending(a => a.IsDefault)
+            .ThenByDescending(a => a.CreatedAt)
+            .Select(a => new AddressResponse
+            {
+                Id = a.Id,
+                FullName = a.FullName,
+                Phone = a.Phone,
+                Email = a.Email,
+                AddressLine1 = a.AddressLine1,
+                AddressLine2 = a.AddressLine2,
+                Landmark = a.Landmark,
+                City = a.City,
+                State = a.State,
+                Country = a.Country,
+                PostalCode = a.PostalCode,
+                IsDefault = a.IsDefault
+            })
+            .ToListAsync();
+    }
+
+    public async Task<AddressResponse?> CreateAddressAsync(Guid userId, CreateAddressRequest request)
+    {
+        if (request.IsDefault)
+        {
+            var existing = await _context.Addresses
+                .Where(a => a.UserId == userId && a.IsActive && a.IsDefault)
+                .ToListAsync();
+            foreach (var addr in existing)
+                addr.IsDefault = false;
+        }
+
+        var address = new Domain.Entities.Address
+        {
+            UserId = userId,
+            FullName = request.FullName,
+            Phone = request.Phone,
+            Email = request.Email,
+            AddressLine1 = request.AddressLine1,
+            AddressLine2 = request.AddressLine2,
+            Landmark = request.Landmark,
+            City = request.City,
+            State = request.State,
+            Country = request.Country,
+            PostalCode = request.PostalCode,
+            IsDefault = request.IsDefault
+        };
+
+        _context.Addresses.Add(address);
+        await _context.SaveChangesAsync();
+
+        return new AddressResponse
+        {
+            Id = address.Id,
+            FullName = address.FullName,
+            Phone = address.Phone,
+            Email = address.Email,
+            AddressLine1 = address.AddressLine1,
+            AddressLine2 = address.AddressLine2,
+            Landmark = address.Landmark,
+            City = address.City,
+            State = address.State,
+            Country = address.Country,
+            PostalCode = address.PostalCode,
+            IsDefault = address.IsDefault
+        };
+    }
+
+    public async Task<AddressResponse?> UpdateAddressAsync(Guid userId, Guid addressId, CreateAddressRequest request)
+    {
+        var address = await _context.Addresses
+            .FirstOrDefaultAsync(a => a.Id == addressId && a.UserId == userId && a.IsActive);
+        if (address == null) return null;
+
+        if (request.IsDefault && !address.IsDefault)
+        {
+            var existing = await _context.Addresses
+                .Where(a => a.UserId == userId && a.IsActive && a.IsDefault && a.Id != addressId)
+                .ToListAsync();
+            foreach (var addr in existing)
+                addr.IsDefault = false;
+        }
+
+        address.FullName = request.FullName;
+        address.Phone = request.Phone;
+        address.Email = request.Email;
+        address.AddressLine1 = request.AddressLine1;
+        address.AddressLine2 = request.AddressLine2;
+        address.Landmark = request.Landmark;
+        address.City = request.City;
+        address.State = request.State;
+        address.Country = request.Country;
+        address.PostalCode = request.PostalCode;
+        address.IsDefault = request.IsDefault;
+
+        await _context.SaveChangesAsync();
+
+        return new AddressResponse
+        {
+            Id = address.Id,
+            FullName = address.FullName,
+            Phone = address.Phone,
+            Email = address.Email,
+            AddressLine1 = address.AddressLine1,
+            AddressLine2 = address.AddressLine2,
+            Landmark = address.Landmark,
+            City = address.City,
+            State = address.State,
+            Country = address.Country,
+            PostalCode = address.PostalCode,
+            IsDefault = address.IsDefault
+        };
+    }
+
+    public async Task<bool> DeleteAddressAsync(Guid userId, Guid addressId)
+    {
+        var address = await _context.Addresses
+            .FirstOrDefaultAsync(a => a.Id == addressId && a.UserId == userId && a.IsActive);
+        if (address == null) return false;
+
+        address.IsActive = false;
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<CouponApplyResponse> ApplyCouponAsync(ApplyCouponRequest request)
+    {
+        var coupon = await _context.Coupons
+            .FirstOrDefaultAsync(c => c.Code == request.Code && c.IsActive);
+
+        if (coupon == null)
+            return new CouponApplyResponse { IsValid = false, Message = "Invalid coupon code" };
+
+        if (coupon.ExpiresAt.HasValue && coupon.ExpiresAt < DateTime.UtcNow)
+            return new CouponApplyResponse { IsValid = false, Message = "Coupon has expired" };
+
+        if (coupon.UsageLimit.HasValue && coupon.UsedCount >= coupon.UsageLimit)
+            return new CouponApplyResponse { IsValid = false, Message = "Coupon usage limit reached" };
+
+        if (coupon.MinimumOrderAmount.HasValue && request.OrderSubtotal < coupon.MinimumOrderAmount)
+            return new CouponApplyResponse
+            {
+                IsValid = false,
+                Message = $"Minimum order amount is {coupon.MinimumOrderAmount.Value}"
+            };
+
+        decimal discount = coupon.Type == Domain.Enums.CouponType.Percentage
+            ? request.OrderSubtotal * coupon.Value / 100
+            : coupon.Value;
+
+        if (coupon.MaximumDiscountAmount.HasValue && discount > coupon.MaximumDiscountAmount)
+            discount = coupon.MaximumDiscountAmount.Value;
+
+        discount = Math.Round(discount, 2);
+
+        return new CouponApplyResponse
+        {
+            IsValid = true,
+            Code = coupon.Code,
+            Description = coupon.Description,
+            Type = coupon.Type.ToString(),
+            Value = coupon.Value,
+            DiscountAmount = discount,
+            Message = "Coupon applied successfully"
+        };
+    }
+
+    public async Task<CheckoutReviewResponse> ReviewCheckoutAsync(Guid userId, CheckoutReviewRequest request)
+    {
+        var response = new CheckoutReviewResponse { IsValid = true };
+
+        if (request.Items == null || request.Items.Count == 0)
+        {
+            response.IsValid = false;
+            response.Errors.Add("Cart cannot be empty");
+            return response;
+        }
+
+        var productIds = request.Items.Select(i => i.ProductId).Distinct().ToList();
+        var products = await _context.Products
+            .Where(p => productIds.Contains(p.Id) && p.IsActive && p.IsPublished)
+            .Include(p => p.Variants.Where(v => v.IsActive))
+            .Include(p => p.Images.Where(i => i.IsActive))
+            .ToListAsync();
+
+        foreach (var item in request.Items)
+        {
+            var product = products.FirstOrDefault(p => p.Id == item.ProductId);
+            if (product == null)
+            {
+                response.IsValid = false;
+                response.Errors.Add($"Product not found: {item.ProductId}");
+                continue;
+            }
+
+            var variant = item.VariantId.HasValue
+                ? product.Variants.FirstOrDefault(v => v.Id == item.VariantId.Value)
+                : product.Variants.FirstOrDefault();
+
+            var unitPrice = variant?.Price ?? product.Price;
+            var stock = variant?.Stock ?? 0;
+            var isAvailable = variant?.IsAvailable ?? false;
+            var imageUrl = product.Images.FirstOrDefault(i => i.IsFeatured)?.Url
+                ?? product.Images.FirstOrDefault()?.Url;
+
+            if (!isAvailable || stock < item.Quantity)
+            {
+                response.IsValid = false;
+                response.Errors.Add($"{product.Name} is insufficient stock (available: {stock})");
+            }
+
+            response.Items.Add(new CheckoutItemResponse
+            {
+                ProductId = product.Id,
+                VariantId = variant?.Id,
+                ProductName = product.Name,
+                Sku = variant?.Sku ?? product.Sku,
+                ImageUrl = imageUrl,
+                UnitPrice = unitPrice,
+                Quantity = item.Quantity,
+                TotalPrice = unitPrice * item.Quantity,
+                AvailableStock = stock,
+                IsAvailable = isAvailable && stock >= item.Quantity
+            });
+        }
+
+        response.SubTotal = response.Items.Sum(i => i.TotalPrice);
+        response.TaxAmount = Math.Round(response.SubTotal * 0.18m, 2);
+        response.ShippingAmount = response.SubTotal >= 2000 ? 0 : 150;
+
+        if (!string.IsNullOrEmpty(request.CouponCode))
+        {
+            var couponResult = await ApplyCouponAsync(new ApplyCouponRequest
+            {
+                Code = request.CouponCode,
+                OrderSubtotal = response.SubTotal
+            });
+            if (couponResult.IsValid)
+            {
+                response.Coupon = couponResult;
+                response.DiscountAmount = couponResult.DiscountAmount;
+            }
+        }
+
+        response.TotalAmount = response.SubTotal + response.TaxAmount + response.ShippingAmount - response.DiscountAmount;
+        if (response.TotalAmount < 0) response.TotalAmount = 0;
+
+        return response;
+    }
+
     private static StorefrontProductResponse MapToStorefrontProduct(Domain.Entities.Product product)
     {
         var images = product.Images.Where(i => i.IsActive).OrderBy(i => i.SortOrder).ToList();

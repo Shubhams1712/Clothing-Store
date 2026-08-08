@@ -30,6 +30,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Coupon> Coupons => Set<Coupon>();
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<StoreSettings> StoreSettings => Set<StoreSettings>();
+    public DbSet<Address> Addresses => Set<Address>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -223,6 +224,22 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.AdminReply).HasMaxLength(2000);
             entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId);
             entity.HasOne(e => e.Product).WithMany().HasForeignKey(e => e.ProductId);
+        });
+
+        modelBuilder.Entity<Address>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.FullName).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Phone).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.Email).HasMaxLength(256);
+            entity.Property(e => e.AddressLine1).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.AddressLine2).HasMaxLength(500);
+            entity.Property(e => e.Landmark).HasMaxLength(200);
+            entity.Property(e => e.City).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.State).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Country).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.PostalCode).IsRequired().HasMaxLength(20);
+            entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId);
         });
 
         modelBuilder.Entity<StoreSettings>(entity =>

@@ -120,3 +120,129 @@ public class ProductFilterRequest
     public bool? IsBestSeller { get; set; }
     public bool? InStock { get; set; }
 }
+
+public class AddressResponse
+{
+    public Guid Id { get; set; }
+    public string FullName { get; set; } = string.Empty;
+    public string Phone { get; set; } = string.Empty;
+    public string? Email { get; set; }
+    public string AddressLine1 { get; set; } = string.Empty;
+    public string? AddressLine2 { get; set; }
+    public string? Landmark { get; set; }
+    public string City { get; set; } = string.Empty;
+    public string State { get; set; } = string.Empty;
+    public string Country { get; set; } = "India";
+    public string PostalCode { get; set; } = string.Empty;
+    public bool IsDefault { get; set; }
+}
+
+public class CreateAddressRequest
+{
+    [System.ComponentModel.DataAnnotations.Required]
+    [System.ComponentModel.DataAnnotations.MaxLength(200)]
+    public string FullName { get; set; } = string.Empty;
+
+    [System.ComponentModel.DataAnnotations.Required]
+    [System.ComponentModel.DataAnnotations.MaxLength(20)]
+    public string Phone { get; set; } = string.Empty;
+
+    [System.ComponentModel.DataAnnotations.MaxLength(256)]
+    public string? Email { get; set; }
+
+    [System.ComponentModel.DataAnnotations.Required]
+    [System.ComponentModel.DataAnnotations.MaxLength(500)]
+    public string AddressLine1 { get; set; } = string.Empty;
+
+    [System.ComponentModel.DataAnnotations.MaxLength(500)]
+    public string? AddressLine2 { get; set; }
+
+    [System.ComponentModel.DataAnnotations.MaxLength(200)]
+    public string? Landmark { get; set; }
+
+    [System.ComponentModel.DataAnnotations.Required]
+    [System.ComponentModel.DataAnnotations.MaxLength(100)]
+    public string City { get; set; } = string.Empty;
+
+    [System.ComponentModel.DataAnnotations.Required]
+    [System.ComponentModel.DataAnnotations.MaxLength(100)]
+    public string State { get; set; } = string.Empty;
+
+    [System.ComponentModel.DataAnnotations.Required]
+    [System.ComponentModel.DataAnnotations.MaxLength(100)]
+    public string Country { get; set; } = "India";
+
+    [System.ComponentModel.DataAnnotations.Required]
+    [System.ComponentModel.DataAnnotations.MaxLength(20)]
+    public string PostalCode { get; set; } = string.Empty;
+
+    public bool IsDefault { get; set; }
+}
+
+public class ApplyCouponRequest
+{
+    [System.ComponentModel.DataAnnotations.Required]
+    [System.ComponentModel.DataAnnotations.MaxLength(50)]
+    public string Code { get; set; } = string.Empty;
+
+    public decimal OrderSubtotal { get; set; }
+}
+
+public class CouponApplyResponse
+{
+    public bool IsValid { get; set; }
+    public string? Code { get; set; }
+    public string? Description { get; set; }
+    public string Type { get; set; } = string.Empty;
+    public decimal Value { get; set; }
+    public decimal DiscountAmount { get; set; }
+    public string? Message { get; set; }
+}
+
+public class CheckoutReviewRequest
+{
+    [System.ComponentModel.DataAnnotations.Required]
+    public List<CheckoutItemRequest> Items { get; set; } = new();
+    public string? CouponCode { get; set; }
+    public string? ShippingCountry { get; set; }
+    public string? ShippingState { get; set; }
+}
+
+public class CheckoutItemRequest
+{
+    [System.ComponentModel.DataAnnotations.Required]
+    public Guid ProductId { get; set; }
+
+    public Guid? VariantId { get; set; }
+
+    [System.ComponentModel.DataAnnotations.Required]
+    [System.ComponentModel.DataAnnotations.Range(1, int.MaxValue)]
+    public int Quantity { get; set; }
+}
+
+public class CheckoutReviewResponse
+{
+    public List<CheckoutItemResponse> Items { get; set; } = new();
+    public decimal SubTotal { get; set; }
+    public decimal TaxAmount { get; set; }
+    public decimal ShippingAmount { get; set; }
+    public decimal DiscountAmount { get; set; }
+    public decimal TotalAmount { get; set; }
+    public CouponApplyResponse? Coupon { get; set; }
+    public bool IsValid { get; set; }
+    public List<string> Errors { get; set; } = new();
+}
+
+public class CheckoutItemResponse
+{
+    public Guid ProductId { get; set; }
+    public Guid? VariantId { get; set; }
+    public string ProductName { get; set; } = string.Empty;
+    public string? Sku { get; set; }
+    public string? ImageUrl { get; set; }
+    public decimal UnitPrice { get; set; }
+    public int Quantity { get; set; }
+    public decimal TotalPrice { get; set; }
+    public int AvailableStock { get; set; }
+    public bool IsAvailable { get; set; }
+}
