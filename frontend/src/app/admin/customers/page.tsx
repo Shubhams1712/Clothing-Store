@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Skeleton } from "@/components/ui/skeleton";
 import { Search, Eye, UserX, UserCheck } from "lucide-react";
 import { toast } from "sonner";
+import { formatPrice } from "@/lib/utils";
 
 export default function AdminCustomersPage() {
   const queryClient = useQueryClient();
@@ -52,7 +53,7 @@ export default function AdminCustomersPage() {
                       <TableCell className="font-medium">{c.firstName} {c.lastName}</TableCell>
                       <TableCell>{c.email}</TableCell>
                       <TableCell>{c.orderCount}</TableCell>
-                      <TableCell>₹{c.totalSpent.toLocaleString()}</TableCell>
+                      <TableCell>{formatPrice(c.totalSpent)}</TableCell>
                       <TableCell><Badge variant={c.isActive ? "default" : "destructive"}>{c.isActive ? "Active" : "Disabled"}</Badge></TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
@@ -89,7 +90,7 @@ export default function AdminCustomersPage() {
               <div><p className="text-sm text-muted-foreground">Name</p><p className="font-medium">{detailCustomer.firstName} {detailCustomer.lastName}</p></div>
               <div><p className="text-sm text-muted-foreground">Email</p><p>{detailCustomer.email}</p></div>
               <div><p className="text-sm text-muted-foreground">Orders</p><p>{detailCustomer.orderCount}</p></div>
-              <div><p className="text-sm text-muted-foreground">Total Spent</p><p>₹{detailCustomer.totalSpent.toLocaleString()}</p></div>
+              <div><p className="text-sm text-muted-foreground">Total Spent</p><p>{formatPrice(detailCustomer.totalSpent)}</p></div>
               <div><p className="text-sm text-muted-foreground">Joined</p><p>{new Date(detailCustomer.createdAt).toLocaleDateString()}</p></div>
             </div>
           )}

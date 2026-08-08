@@ -16,6 +16,11 @@ try
 {
     builder.Host.UseSerilog();
 
+    builder.Services.Configure<Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerOptions>(options =>
+    {
+        options.Limits.MaxRequestBodySize = 10 * 1024 * 1024;
+    });
+
     builder.Services.AddApiServices(builder.Configuration);
     builder.Services.AddInfrastructure(builder.Configuration);
     builder.Services.AddApplication();
@@ -33,6 +38,8 @@ try
 
     app.UseHttpsRedirection();
     app.UseCors("AllowFrontend");
+
+    app.UseStaticFiles();
 
     app.UseAuthentication();
     app.UseAuthorization();

@@ -63,7 +63,7 @@ export default function Home() {
       <section className="border-y bg-muted/30">
         <div className="mx-auto grid max-w-7xl grid-cols-2 gap-4 px-4 py-6 sm:grid-cols-4 sm:px-6 lg:px-8">
           {[
-            { icon: Truck, label: "Free Shipping", desc: "On orders over $100" },
+            { icon: Truck, label: "Free Shipping", desc: "On orders over ₹1,000" },
             { icon: Shield, label: "Secure Payment", desc: "100% protected" },
             { icon: RotateCcw, label: "Easy Returns", desc: "30-day policy" },
             { icon: Headphones, label: "24/7 Support", desc: "Always here to help" },

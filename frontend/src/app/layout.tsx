@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { QueryProvider } from "@/providers/query-provider";
 import { AuthProvider } from "@/providers/auth-provider";
+import { CartProvider } from "@/hooks/use-cart";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { NavbarShell } from "@/components/layout/navbar-shell";
@@ -33,11 +34,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
         <QueryProvider>
           <AuthProvider>
-            <TooltipProvider>
-              <NavbarShell />
-              <PageContainer>{children}</PageContainer>
-              <FooterShell />
-            </TooltipProvider>
+            <CartProvider>
+              <TooltipProvider>
+                <NavbarShell />
+                <PageContainer>{children}</PageContainer>
+                <FooterShell />
+              </TooltipProvider>
+            </CartProvider>
             <Toaster />
           </AuthProvider>
         </QueryProvider>

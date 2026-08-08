@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, Search, Trash2, Eye, EyeOff, Edit } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
+import { formatPrice } from "@/lib/utils";
 
 export default function AdminProductsPage() {
   const queryClient = useQueryClient();
@@ -88,7 +89,7 @@ export default function AdminProductsPage() {
                     <TableRow key={product.id}>
                       <TableCell className="font-medium">{product.name}</TableCell>
                       <TableCell>{product.sku}</TableCell>
-                      <TableCell>₹{product.price.toLocaleString()}</TableCell>
+                      <TableCell>{formatPrice(product.price)}</TableCell>
                       <TableCell>{product.categoryName || "-"}</TableCell>
                       <TableCell>
                         <div className="flex gap-1">

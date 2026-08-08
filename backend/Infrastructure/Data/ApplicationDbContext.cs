@@ -113,8 +113,8 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Tags).HasMaxLength(500);
             entity.Property(e => e.SeoTitle).HasMaxLength(200);
             entity.Property(e => e.SeoDescription).HasMaxLength(500);
-            entity.HasIndex(e => e.Slug).IsUnique();
-            entity.HasIndex(e => e.Sku).IsUnique();
+            entity.HasIndex(e => e.Slug).IsUnique().HasFilter("\"IsActive\" = true");
+            entity.HasIndex(e => e.Sku).IsUnique().HasFilter("\"IsActive\" = true");
             entity.HasOne(e => e.Category).WithMany(c => c.Products).HasForeignKey(e => e.CategoryId);
         });
 
@@ -125,7 +125,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Color).HasMaxLength(50);
             entity.Property(e => e.Sku).IsRequired().HasMaxLength(100);
             entity.Property(e => e.Price).HasColumnType("decimal(18,2)");
-            entity.HasIndex(e => e.Sku).IsUnique();
+            entity.HasIndex(e => e.Sku).IsUnique().HasFilter("\"IsActive\" = true");
             entity.HasOne(e => e.Product).WithMany(p => p.Variants).HasForeignKey(e => e.ProductId);
         });
 

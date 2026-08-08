@@ -1,27 +1,25 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { adminApi } from "@/services/admin";
-import type { DashboardStats } from "@/types/admin";
+import { formatPrice } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { IndianRupee, ShoppingCart, Package, Users, AlertTriangle } from "lucide-react";
 
 export default function AdminDashboardPage() {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: stats, isLoading } = useQuery({
+    queryKey: ["admin-dashboard"],
+    queryFn: () => adminApi.dashboard.getStats(),
+  });
 
-  useEffect(() => {
-    adminApi.dashboard.getStats().then(setStats).finally(() => setLoading(false));
-  }, []);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-bold">Dashboard</h1>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
             <Card key={i}>
               <CardContent className="p-6">
                 <Skeleton className="h-4 w-24 mb-2" />
@@ -37,7 +35,7 @@ export default function AdminDashboardPage() {
   if (!stats) return null;
 
   const statCards = [
-    { title: "Total Revenue", value: `₹${stats.totalRevenue.toLocaleString()}`, icon: IndianRupee, color: "text-green-600" },
+    { title: "Total Revenue", value: formatPrice(stats.totalRevenue), icon: IndianRupee, color: "text-green-600" },
     { title: "Today's Orders", value: stats.todayOrders.toString(), icon: ShoppingCart, color: "text-blue-600" },
     { title: "Pending Orders", value: stats.pendingOrders.toString(), icon: AlertTriangle, color: "text-yellow-600" },
     { title: "Total Customers", value: stats.totalCustomers.toString(), icon: Users, color: "text-purple-600" },
@@ -92,7 +90,7 @@ export default function AdminDashboardPage() {
                       <p className="text-xs text-muted-foreground">{order.customerName}</p>
                     </div>
                     <div className="text-right">
-                      <p className="font-medium text-sm">₹{order.totalAmount.toLocaleString()}</p>
+                      <p className="font-medium text-sm">{formatPrice(order.totalAmount)}</p>
                       <Badge variant="outline" className={statusColors[order.status] || ""}>
                         {order.status}
                       </Badge>

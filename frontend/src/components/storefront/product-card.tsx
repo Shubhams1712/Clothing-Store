@@ -7,7 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { StorefrontProduct } from "@/types/storefront";
-import { getSafeImageUrl } from "@/lib/utils";
+import { getSafeImageUrl, formatPrice } from "@/lib/utils";
 
 interface ProductCardProps {
   product: StorefrontProduct;
@@ -88,10 +88,10 @@ export function ProductCard({ product }: ProductCardProps) {
           </div>
           <h3 className="line-clamp-1 text-sm font-medium">{product.name}</h3>
           <div className="flex items-center gap-2">
-            <span className="text-sm font-semibold">${product.price.toFixed(2)}</span>
+            <span className="text-sm font-semibold">{formatPrice(product.price)}</span>
             {hasDiscount && (
               <span className="text-xs text-muted-foreground line-through">
-                ${product.comparePrice!.toFixed(2)}
+                {formatPrice(product.comparePrice!)}
               </span>
             )}
           </div>

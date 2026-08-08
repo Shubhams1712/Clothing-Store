@@ -253,8 +253,8 @@ public class StorefrontService : IStorefrontService
 
     private static StorefrontProductResponse MapToStorefrontProduct(Domain.Entities.Product product)
     {
-        var images = product.Images.ToList();
-        var variants = product.Variants.ToList();
+        var images = product.Images.Where(i => i.IsActive).OrderBy(i => i.SortOrder).ToList();
+        var variants = product.Variants.Where(v => v.IsActive).ToList();
         var primaryImage = images.FirstOrDefault(i => i.IsFeatured) ?? images.FirstOrDefault();
         var secondaryImage = images.FirstOrDefault(i => !i.IsFeatured && i != primaryImage);
 
@@ -263,7 +263,9 @@ public class StorefrontService : IStorefrontService
             Id = product.Id,
             Name = product.Name,
             Slug = product.Slug,
+            Description = product.Description,
             ShortDescription = product.ShortDescription,
+            Sku = product.Sku,
             Price = product.Price,
             ComparePrice = product.ComparePrice,
             Brand = product.Brand,
@@ -273,8 +275,26 @@ public class StorefrontService : IStorefrontService
             CreatedAt = product.CreatedAt,
             PrimaryImageUrl = primaryImage?.Url,
             SecondaryImageUrl = secondaryImage?.Url,
+            Images = images.Select(i => new StorefrontProductImageResponse
+            {
+                Id = i.Id,
+                Url = i.Url,
+                AltText = i.AltText,
+                SortOrder = i.SortOrder,
+                IsFeatured = i.IsFeatured
+            }).ToList(),
             Colors = variants.Select(v => v.Color).Where(c => c != null).Distinct().Cast<string>().ToList(),
             Sizes = variants.Select(v => v.Size).Where(s => s != null).Distinct().Cast<string>().ToList(),
+            Variants = variants.Select(v => new StorefrontProductVariantResponse
+            {
+                Id = v.Id,
+                Size = v.Size,
+                Color = v.Color,
+                Sku = v.Sku,
+                Price = v.Price,
+                Stock = v.Stock,
+                IsAvailable = v.IsAvailable
+            }).ToList(),
             IsInStock = variants.Any(v => v.IsAvailable && v.Stock > 0)
         };
     }

@@ -4,7 +4,9 @@ export interface StorefrontProduct {
   id: string;
   name: string;
   slug: string;
+  description?: string;
   shortDescription?: string;
+  sku?: string;
   price: number;
   comparePrice?: number;
   brand?: string;
@@ -14,11 +16,31 @@ export interface StorefrontProduct {
   createdAt: string;
   primaryImageUrl?: string;
   secondaryImageUrl?: string;
+  images: StorefrontProductImage[];
   colors: string[];
   sizes: string[];
+  variants: StorefrontProductVariant[];
   reviewCount: number;
   averageRating: number;
   isInStock: boolean;
+}
+
+export interface StorefrontProductImage {
+  id: string;
+  url: string;
+  altText?: string;
+  sortOrder: number;
+  isFeatured: boolean;
+}
+
+export interface StorefrontProductVariant {
+  id: string;
+  size?: string;
+  color?: string;
+  sku: string;
+  price: number;
+  stock: number;
+  isAvailable: boolean;
 }
 
 export interface StorefrontCategory {

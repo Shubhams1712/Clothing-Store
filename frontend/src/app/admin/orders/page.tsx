@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Search, Eye } from "lucide-react";
 import { toast } from "sonner";
+import { formatPrice } from "@/lib/utils";
 
 const ORDER_STATUSES: OrderStatus[] = ["Pending", "Confirmed", "Packed", "Shipped", "Delivered", "Cancelled", "Refunded"];
 const STATUS_COLORS: Record<string, string> = {
@@ -61,7 +62,7 @@ export default function AdminOrdersPage() {
                     <TableRow key={order.id}>
                       <TableCell className="font-medium">{order.orderNumber}</TableCell>
                       <TableCell>{order.customerName}</TableCell>
-                      <TableCell>₹{order.totalAmount.toLocaleString()}</TableCell>
+                      <TableCell>{formatPrice(order.totalAmount)}</TableCell>
                       <TableCell><Badge className={STATUS_COLORS[order.status]}>{order.status}</Badge></TableCell>
                       <TableCell>{new Date(order.createdAt).toLocaleDateString()}</TableCell>
                       <TableCell className="text-right">
@@ -93,14 +94,14 @@ export default function AdminOrdersPage() {
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div><p className="text-sm text-muted-foreground">Customer</p><p className="font-medium">{detailOrder.customerName}</p><p className="text-sm text-muted-foreground">{detailOrder.customerEmail}</p></div>
-                <div><p className="text-sm text-muted-foreground">Total</p><p className="font-medium text-lg">₹{detailOrder.totalAmount.toLocaleString()}</p></div>
+                <div><p className="text-sm text-muted-foreground">Total</p><p className="font-medium text-lg">{formatPrice(detailOrder.totalAmount)}</p></div>
               </div>
               <div>
                 <p className="text-sm text-muted-foreground mb-2">Items</p>
                 {detailOrder.items.map(item => (
                   <div key={item.id} className="flex justify-between border-b py-1 text-sm">
                     <span>{item.productName} x {item.quantity}</span>
-                    <span>₹{item.totalPrice.toLocaleString()}</span>
+                    <span>{formatPrice(item.totalPrice)}</span>
                   </div>
                 ))}
               </div>

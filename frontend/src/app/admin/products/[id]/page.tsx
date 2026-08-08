@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ArrowLeft, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
+import { ImageUpload } from "@/components/ui/image-upload";
 
 export default function AdminProductFormPage() {
   const router = useRouter();
@@ -52,9 +53,24 @@ export default function AdminProductFormPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (variants.length === 0) { toast.error("Add at least one variant"); return; }
+    if (variants.some(v => !v.sku || v.price < 0.01)) {
+      toast.error("Each variant must have a SKU and price >= ₹0.01");
+      return;
+    }
+    const filteredImages = images.filter(img => img.url.trim() !== "");
     setSaving(true);
     try {
-      const payload: Record<string, unknown> = { ...form, categoryId: form.categoryId || undefined, variants, images };
+      const payload: Record<string, unknown> = {
+        ...form,
+        price: form.price < 0.01 ? 0.01 : form.price,
+        categoryId: form.categoryId || undefined,
+        variants: variants.map(v => ({
+          ...v,
+          price: v.price < 0.01 ? 0.01 : v.price,
+          stock: Math.max(0, v.stock),
+        })),
+        images: filteredImages,
+      };
       if (isNew) {
         await adminApi.products.create(payload);
         toast.success("Product created");
@@ -63,11 +79,14 @@ export default function AdminProductFormPage() {
         toast.success("Product updated");
       }
       router.push("/admin/products");
-    } catch { toast.error("Failed to save product"); } finally { setSaving(false); }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Failed to save product";
+      toast.error(msg);
+    } finally { setSaving(false); }
   };
 
   const updateForm = (field: string, value: unknown) => setForm(prev => ({ ...prev, [field]: value }));
-  const addVariant = () => setVariants(prev => [...prev, { size: "", color: "", sku: "", price: 0, stock: 0, isAvailable: true }]);
+  const addVariant = () => setVariants(prev => [...prev, { size: "", color: "", sku: "", price: 0.01, stock: 0, isAvailable: true }]);
   const removeVariant = (i: number) => setVariants(prev => prev.filter((_, idx) => idx !== i));
   const updateVariant = (i: number, field: string, value: unknown) => setVariants(prev => prev.map((v, idx) => idx === i ? { ...v, [field]: value } : v));
   const addImage = () => setImages(prev => [...prev, { url: "", altText: "", sortOrder: prev.length, isFeatured: prev.length === 0 }]);
@@ -118,7 +137,7 @@ export default function AdminProductFormPage() {
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Price *</label>
-                <Input type="number" step="0.01" value={form.price} onChange={e => updateForm("price", parseFloat(e.target.value) || 0)} required />
+                <Input type="number" step="0.01" min="0.01" value={form.price} onChange={e => updateForm("price", Math.max(0.01, parseFloat(e.target.value) || 0.01))} required />
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Compare Price</label>
@@ -154,7 +173,7 @@ export default function AdminProductFormPage() {
                 <Input placeholder="Size" value={v.size} onChange={e => updateVariant(i, "size", e.target.value)} />
                 <Input placeholder="Color" value={v.color} onChange={e => updateVariant(i, "color", e.target.value)} />
                 <Input placeholder="SKU" value={v.sku} onChange={e => updateVariant(i, "sku", e.target.value)} required />
-                <Input type="number" step="0.01" placeholder="Price" value={v.price} onChange={e => updateVariant(i, "price", parseFloat(e.target.value) || 0)} />
+                <Input type="number" step="0.01" min="0.01" placeholder="Price" value={v.price} onChange={e => updateVariant(i, "price", Math.max(0.01, parseFloat(e.target.value) || 0.01))} />
                 <Input type="number" placeholder="Stock" value={v.stock} onChange={e => updateVariant(i, "stock", parseInt(e.target.value) || 0)} />
                 <Button type="button" variant="ghost" size="icon" onClick={() => removeVariant(i)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
               </div>
@@ -168,18 +187,25 @@ export default function AdminProductFormPage() {
             <CardTitle>Images</CardTitle>
             <Button type="button" variant="outline" size="sm" onClick={addImage}><Plus className="mr-2 h-4 w-4" />Add</Button>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-4">
             {images.map((img, i) => (
-              <div key={i} className="grid gap-3 md:grid-cols-5 items-end">
-                <Input placeholder="Image URL" value={img.url} onChange={e => updateImage(i, "url", e.target.value)} className="col-span-2" />
-                <Input placeholder="Alt text" value={img.altText} onChange={e => updateImage(i, "altText", e.target.value)} />
-                <div className="flex items-center gap-2">
-                  <Checkbox checked={img.isFeatured} onCheckedChange={v => updateImage(i, "isFeatured", !!v)} />
-                  <label className="text-sm">Featured</label>
+              <div key={i} className="flex items-start gap-4">
+                <ImageUpload
+                  value={img.url}
+                  onChange={(url) => updateImage(i, "url", url)}
+                  onRemove={() => removeImage(i)}
+                  className="w-[120px]"
+                />
+                <div className="flex-1 space-y-2">
+                  <Input placeholder="Alt text" value={img.altText} onChange={e => updateImage(i, "altText", e.target.value)} />
+                  <div className="flex items-center gap-2">
+                    <Checkbox checked={img.isFeatured} onCheckedChange={v => updateImage(i, "isFeatured", !!v)} />
+                    <label className="text-sm">Featured</label>
+                  </div>
                 </div>
-                <Button type="button" variant="ghost" size="icon" onClick={() => removeImage(i)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
               </div>
             ))}
+            {images.length === 0 && <p className="text-sm text-muted-foreground">No images added</p>}
           </CardContent>
         </Card>
 

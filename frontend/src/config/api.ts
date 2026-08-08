@@ -43,5 +43,9 @@ export const API_CONFIG = {
       SETTINGS: "/api/admin/settings",
       INVENTORY: "/api/admin/inventory",
     },
+    MEDIA: {
+      UPLOAD: "/api/media/upload",
+      DELETE: "/api/media",
+    },
   },
 } as const;

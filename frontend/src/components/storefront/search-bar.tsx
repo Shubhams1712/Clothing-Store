@@ -23,26 +23,41 @@ export function SearchBar({ placeholder = "Search products...", className, defau
     }
   }, [query, router]);
 
+  const handleClear = useCallback(() => {
+    setQuery("");
+  }, []);
+
   return (
-    <div className={`relative flex w-full items-center ${className}`}>
-      <Search className="absolute left-3 h-4 w-4 text-muted-foreground" />
-      <Input
-        type="search"
-        placeholder={placeholder}
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") handleSearch();
-        }}
-        className="h-10 w-full pl-10 pr-4"
-      />
+    <div className={`relative flex w-full items-center gap-2 ${className}`}>
+      <div className="relative flex-1">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          type="search"
+          placeholder={placeholder}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") handleSearch();
+          }}
+          className="h-10 w-full pl-10 pr-9"
+        />
+        {query && (
+          <button
+            type="button"
+            onClick={handleClear}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          >
+            &times;
+          </button>
+        )}
+      </div>
       <Button
-        variant="ghost"
-        size="sm"
-        className="absolute right-1"
+        size="icon"
+        className="h-10 w-10 shrink-0"
         onClick={handleSearch}
+        disabled={!query.trim()}
       >
-        Search
+        <Search className="h-4 w-4" />
       </Button>
     </div>
   );
