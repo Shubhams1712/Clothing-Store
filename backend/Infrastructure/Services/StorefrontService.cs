@@ -251,6 +251,105 @@ public class StorefrontService : IStorefrontService
             .FirstOrDefaultAsync();
     }
 
+    public async Task<PaginatedResponse<StorefrontReviewResponse>> GetProductReviewsAsync(Guid productId, int page = 1, int pageSize = 10, string? sortBy = null)
+    {
+        var query = _context.Reviews
+            .Where(r => r.ProductId == productId && r.IsActive && r.IsApproved && !r.IsHidden)
+            .Include(r => r.User)
+            .AsQueryable();
+
+        query = sortBy?.ToLower() switch
+        {
+            "rating_high" => query.OrderByDescending(r => r.Rating),
+            "rating_low" => query.OrderBy(r => r.Rating),
+            "oldest" => query.OrderBy(r => r.CreatedAt),
+            _ => query.OrderByDescending(r => r.CreatedAt)
+        };
+
+        var totalCount = await query.CountAsync();
+
+        var reviews = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(r => new StorefrontReviewResponse
+            {
+                Id = r.Id,
+                UserName = r.User.FirstName + " " + r.User.LastName,
+                Rating = r.Rating,
+                Title = r.Title,
+                Comment = r.Comment,
+                AdminReply = r.AdminReply,
+                CreatedAt = r.CreatedAt
+            })
+            .ToListAsync();
+
+        return new PaginatedResponse<StorefrontReviewResponse>
+        {
+            Items = reviews,
+            TotalCount = totalCount,
+            Page = page,
+            PageSize = pageSize
+        };
+    }
+
+    public async Task<StorefrontRatingDistribution> GetProductRatingDistributionAsync(Guid productId)
+    {
+        var ratings = await _context.Reviews
+            .Where(r => r.ProductId == productId && r.IsActive && r.IsApproved && !r.IsHidden)
+            .GroupBy(r => r.Rating)
+            .Select(g => new { Rating = g.Key, Count = g.Count() })
+            .ToListAsync();
+
+        var distribution = new StorefrontRatingDistribution();
+        foreach (var item in ratings)
+        {
+            switch (item.Rating)
+            {
+                case 5: distribution.FiveStar = item.Count; break;
+                case 4: distribution.FourStar = item.Count; break;
+                case 3: distribution.ThreeStar = item.Count; break;
+                case 2: distribution.TwoStar = item.Count; break;
+                case 1: distribution.OneStar = item.Count; break;
+            }
+        }
+        return distribution;
+    }
+
+    public async Task<StorefrontReviewResponse?> CreateProductReviewAsync(Guid productId, Guid userId, CreateStorefrontReviewRequest request)
+    {
+        var product = await _context.Products.FindAsync(productId);
+        if (product == null || !product.IsActive) return null;
+
+        var existingReview = await _context.Reviews
+            .FirstOrDefaultAsync(r => r.ProductId == productId && r.UserId == userId && r.IsActive);
+        if (existingReview != null) return null;
+
+        var review = new Domain.Entities.Review
+        {
+            ProductId = productId,
+            UserId = userId,
+            Rating = request.Rating,
+            Title = request.Title,
+            Comment = request.Comment,
+            IsApproved = false,
+            IsHidden = false
+        };
+
+        _context.Reviews.Add(review);
+        await _context.SaveChangesAsync();
+
+        var user = await _context.Users.FindAsync(userId);
+        return new StorefrontReviewResponse
+        {
+            Id = review.Id,
+            UserName = user?.FirstName + " " + user?.LastName,
+            Rating = review.Rating,
+            Title = review.Title,
+            Comment = review.Comment,
+            CreatedAt = review.CreatedAt
+        };
+    }
+
     private static StorefrontProductResponse MapToStorefrontProduct(Domain.Entities.Product product)
     {
         var images = product.Images.Where(i => i.IsActive).OrderBy(i => i.SortOrder).ToList();

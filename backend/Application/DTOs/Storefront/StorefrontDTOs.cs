@@ -67,6 +67,40 @@ public class StorefrontCollectionResponse
     public int ProductCount { get; set; }
 }
 
+public class StorefrontReviewResponse
+{
+    public Guid Id { get; set; }
+    public string UserName { get; set; } = string.Empty;
+    public int Rating { get; set; }
+    public string Title { get; set; } = string.Empty;
+    public string? Comment { get; set; }
+    public string? AdminReply { get; set; }
+    public DateTime CreatedAt { get; set; }
+}
+
+public class StorefrontRatingDistribution
+{
+    public int FiveStar { get; set; }
+    public int FourStar { get; set; }
+    public int ThreeStar { get; set; }
+    public int TwoStar { get; set; }
+    public int OneStar { get; set; }
+}
+
+public class CreateStorefrontReviewRequest
+{
+    [System.ComponentModel.DataAnnotations.Required]
+    [System.ComponentModel.DataAnnotations.Range(1, 5)]
+    public int Rating { get; set; }
+
+    [System.ComponentModel.DataAnnotations.Required]
+    [System.ComponentModel.DataAnnotations.MaxLength(200)]
+    public string Title { get; set; } = string.Empty;
+
+    [System.ComponentModel.DataAnnotations.MaxLength(2000)]
+    public string? Comment { get; set; }
+}
+
 public class ProductFilterRequest
 {
     public int Page { get; set; } = 1;

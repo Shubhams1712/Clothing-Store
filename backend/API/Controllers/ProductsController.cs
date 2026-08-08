@@ -1,7 +1,9 @@
+using System.Security.Claims;
 using Application.Common.Models;
 using Application.DTOs.Common;
 using Application.DTOs.Storefront;
 using Application.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace API.Controllers;
@@ -15,6 +17,12 @@ public class ProductsController : ControllerBase
     public ProductsController(IStorefrontService storefrontService)
     {
         _storefrontService = storefrontService;
+    }
+
+    private Guid? GetCurrentUserId()
+    {
+        var claim = User.FindFirst(ClaimTypes.NameIdentifier);
+        return claim != null ? Guid.Parse(claim.Value) : null;
     }
 
     [HttpGet]
@@ -66,5 +74,36 @@ public class ProductsController : ControllerBase
     {
         var result = await _storefrontService.GetAvailableColorsAsync();
         return Ok(ApiResponse<List<string>>.SuccessResponse(result));
+    }
+
+    [HttpGet("{id:guid}/reviews")]
+    public async Task<ActionResult<ApiResponse<PaginatedResponse<StorefrontReviewResponse>>>> GetProductReviews(
+        Guid id, [FromQuery] int page = 1, [FromQuery] int pageSize = 10, [FromQuery] string? sortBy = null)
+    {
+        var result = await _storefrontService.GetProductReviewsAsync(id, page, pageSize, sortBy);
+        return Ok(ApiResponse<PaginatedResponse<StorefrontReviewResponse>>.SuccessResponse(result));
+    }
+
+    [HttpGet("{id:guid}/rating-distribution")]
+    public async Task<ActionResult<ApiResponse<StorefrontRatingDistribution>>> GetRatingDistribution(Guid id)
+    {
+        var result = await _storefrontService.GetProductRatingDistributionAsync(id);
+        return Ok(ApiResponse<StorefrontRatingDistribution>.SuccessResponse(result));
+    }
+
+    [Authorize]
+    [HttpPost("{id:guid}/reviews")]
+    public async Task<ActionResult<ApiResponse<StorefrontReviewResponse>>> CreateReview(
+        Guid id, [FromBody] CreateStorefrontReviewRequest request)
+    {
+        var userId = GetCurrentUserId();
+        if (userId == null)
+            return Unauthorized(ApiResponse<StorefrontReviewResponse>.ErrorResponse("Unauthorized", 401));
+
+        var result = await _storefrontService.CreateProductReviewAsync(id, userId.Value, request);
+        if (result == null)
+            return BadRequest(ApiResponse<StorefrontReviewResponse>.ErrorResponse("Unable to create review. Product not found or you have already reviewed this product."));
+
+        return Ok(ApiResponse<StorefrontReviewResponse>.SuccessResponse(result, "Review submitted for approval"));
     }
 }

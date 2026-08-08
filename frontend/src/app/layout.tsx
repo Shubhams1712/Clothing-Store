@@ -4,6 +4,8 @@ import "./globals.css";
 import { QueryProvider } from "@/providers/query-provider";
 import { AuthProvider } from "@/providers/auth-provider";
 import { CartProvider } from "@/hooks/use-cart";
+import { WishlistProvider } from "@/hooks/use-wishlist";
+import { RecentlyViewedProvider } from "@/hooks/use-recently-viewed";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 import { NavbarShell } from "@/components/layout/navbar-shell";
@@ -35,11 +37,15 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         <QueryProvider>
           <AuthProvider>
             <CartProvider>
-              <TooltipProvider>
-                <NavbarShell />
-                <PageContainer>{children}</PageContainer>
-                <FooterShell />
-              </TooltipProvider>
+              <WishlistProvider>
+                <RecentlyViewedProvider>
+                  <TooltipProvider>
+                    <NavbarShell />
+                    <PageContainer>{children}</PageContainer>
+                    <FooterShell />
+                  </TooltipProvider>
+                </RecentlyViewedProvider>
+              </WishlistProvider>
             </CartProvider>
             <Toaster />
           </AuthProvider>

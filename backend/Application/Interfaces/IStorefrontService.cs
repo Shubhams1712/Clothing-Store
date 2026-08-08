@@ -18,4 +18,7 @@ public interface IStorefrontService
     Task<List<StorefrontCollectionResponse>> GetFeaturedCollectionsAsync();
     Task<StorefrontCollectionResponse?> GetCollectionBySlugAsync(string slug);
     Task<StorefrontCategoryResponse?> GetCategoryBySlugAsync(string slug);
+    Task<PaginatedResponse<StorefrontReviewResponse>> GetProductReviewsAsync(Guid productId, int page = 1, int pageSize = 10, string? sortBy = null);
+    Task<StorefrontRatingDistribution> GetProductRatingDistributionAsync(Guid productId);
+    Task<StorefrontReviewResponse?> CreateProductReviewAsync(Guid productId, Guid userId, CreateStorefrontReviewRequest request);
 }
