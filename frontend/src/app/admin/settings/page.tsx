@@ -125,7 +125,11 @@ export default function AdminSettingsPage() {
             <CardHeader><CardTitle>Razorpay</CardTitle></CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2"><label className="text-sm font-medium">Key ID</label><Input value={form.razorpayKeyId || ""} onChange={e => update("razorpayKeyId", e.target.value)} /></div>
-              <div className="space-y-2"><label className="text-sm font-medium">Key Secret</label><Input type="password" value={form.razorpayKeySecret || ""} onChange={e => update("razorpayKeySecret", e.target.value)} /></div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Key Secret</label>
+                {form.hasRazorpayKeySecret && <p className="text-xs text-muted-foreground mb-1">Key secret is configured. Leave blank to keep existing.</p>}
+                <Input type="password" placeholder={form.hasRazorpayKeySecret ? "••••••••" : "Enter key secret"} onChange={e => update("razorpayKeySecret", e.target.value || undefined)} />
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
@@ -136,7 +140,11 @@ export default function AdminSettingsPage() {
             <CardContent className="space-y-4">
               <div className="space-y-2"><label className="text-sm font-medium">Cloud Name</label><Input value={form.cloudinaryCloudName || ""} onChange={e => update("cloudinaryCloudName", e.target.value)} /></div>
               <div className="space-y-2"><label className="text-sm font-medium">API Key</label><Input value={form.cloudinaryApiKey || ""} onChange={e => update("cloudinaryApiKey", e.target.value)} /></div>
-              <div className="space-y-2"><label className="text-sm font-medium">API Secret</label><Input type="password" value={form.cloudinaryApiSecret || ""} onChange={e => update("cloudinaryApiSecret", e.target.value)} /></div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">API Secret</label>
+                {form.hasCloudinaryApiSecret && <p className="text-xs text-muted-foreground mb-1">API secret is configured. Leave blank to keep existing.</p>}
+                <Input type="password" placeholder={form.hasCloudinaryApiSecret ? "••••••••" : "Enter API secret"} onChange={e => update("cloudinaryApiSecret", e.target.value || undefined)} />
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

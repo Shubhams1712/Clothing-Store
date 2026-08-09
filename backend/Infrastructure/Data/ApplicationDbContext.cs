@@ -198,6 +198,9 @@ public class ApplicationDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.ProductName).IsRequired().HasMaxLength(200);
             entity.Property(e => e.Sku).HasMaxLength(100);
+            entity.Property(e => e.ImageUrl).HasMaxLength(1000);
+            entity.Property(e => e.Size).HasMaxLength(50);
+            entity.Property(e => e.Color).HasMaxLength(50);
             entity.Property(e => e.UnitPrice).HasColumnType("decimal(18,2)");
             entity.Property(e => e.TotalPrice).HasColumnType("decimal(18,2)");
             entity.HasOne(e => e.Order).WithMany(o => o.Items).HasForeignKey(e => e.OrderId);

@@ -231,7 +231,7 @@ export default function CartPage() {
               <ArrowLeft className="mr-2 h-4 w-4" />
               Continue Shopping
             </Link>
-            <Button variant="outline" onClick={clearCart} className="text-destructive hover:text-destructive">
+            <Button variant="outline" onClick={() => { if (window.confirm("Are you sure you want to clear your cart?")) clearCart(); }} className="text-destructive hover:text-destructive">
               Clear Cart
             </Button>
           </div>

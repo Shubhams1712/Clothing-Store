@@ -28,7 +28,7 @@ public class AdminService : IAdminService
             .CountAsync(o => o.IsActive && o.CreatedAt >= today);
 
         var pendingOrders = await _context.Orders
-            .CountAsync(o => o.IsActive && o.Status == OrderStatus.Pending);
+            .CountAsync(o => o.IsActive && o.Status == OrderStatus.PendingPayment);
 
         var lowStockProducts = await _context.ProductVariants
             .CountAsync(v => v.IsActive && v.Stock < 10);
@@ -1354,10 +1354,12 @@ public class AdminService : IAdminService
         settings.SocialTwitter = request.SocialTwitter;
         settings.SocialYoutube = request.SocialYoutube;
         settings.RazorpayKeyId = request.RazorpayKeyId;
-        settings.RazorpayKeySecret = request.RazorpayKeySecret;
+        if (!string.IsNullOrEmpty(request.RazorpayKeySecret))
+            settings.RazorpayKeySecret = request.RazorpayKeySecret;
         settings.CloudinaryCloudName = request.CloudinaryCloudName;
         settings.CloudinaryApiKey = request.CloudinaryApiKey;
-        settings.CloudinaryApiSecret = request.CloudinaryApiSecret;
+        if (!string.IsNullOrEmpty(request.CloudinaryApiSecret))
+            settings.CloudinaryApiSecret = request.CloudinaryApiSecret;
 
         await _context.SaveChangesAsync();
 
@@ -1443,10 +1445,10 @@ public class AdminService : IAdminService
             SocialTwitter = settings.SocialTwitter,
             SocialYoutube = settings.SocialYoutube,
             RazorpayKeyId = settings.RazorpayKeyId,
-            RazorpayKeySecret = settings.RazorpayKeySecret,
+            HasRazorpayKeySecret = !string.IsNullOrEmpty(settings.RazorpayKeySecret),
             CloudinaryCloudName = settings.CloudinaryCloudName,
             CloudinaryApiKey = settings.CloudinaryApiKey,
-            CloudinaryApiSecret = settings.CloudinaryApiSecret
+            HasCloudinaryApiSecret = !string.IsNullOrEmpty(settings.CloudinaryApiSecret)
         };
     }
 }

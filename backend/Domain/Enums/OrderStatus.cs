@@ -2,11 +2,15 @@ namespace Domain.Enums;
 
 public enum OrderStatus
 {
-    Pending = 0,
-    Confirmed = 1,
-    Packed = 2,
-    Shipped = 3,
-    Delivered = 4,
-    Cancelled = 5,
-    Refunded = 6
+    PendingPayment = 0,
+    PaymentFailed = 1,
+    PaymentSuccessful = 2,
+    Confirmed = 3,
+    Packed = 4,
+    Shipped = 5,
+    OutForDelivery = 6,
+    Delivered = 7,
+    Cancelled = 8,
+    RefundRequested = 9,
+    Refunded = 10
 }

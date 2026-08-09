@@ -9,7 +9,7 @@ public class Order : BaseEntity
     public Guid UserId { get; set; }
     public User User { get; set; } = null!;
 
-    public OrderStatus Status { get; set; } = OrderStatus.Pending;
+    public OrderStatus Status { get; set; } = OrderStatus.PendingPayment;
     public decimal SubTotal { get; set; }
     public decimal TaxAmount { get; set; }
     public decimal ShippingAmount { get; set; }

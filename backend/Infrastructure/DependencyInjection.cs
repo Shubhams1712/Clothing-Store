@@ -31,6 +31,8 @@ public static class DependencyInjection
         services.AddScoped<IPasswordHasher, PasswordHasher>();
         services.AddScoped<IAdminService, AdminService>();
         services.AddScoped<IStorefrontService, StorefrontService>();
+        services.AddScoped<IPaymentService, PaymentService>();
+        services.AddScoped<IOrderService, OrderService>();
 
         return services;
     }

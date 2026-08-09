@@ -1,8 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
+import Image from "next/image";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { adminApi } from "@/services/admin";
+import { api } from "@/lib/api";
+import { getSafeImageUrl } from "@/lib/utils";
 import type { Collection } from "@/types/admin";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -11,8 +14,18 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Search, Trash2, Edit } from "lucide-react";
+import { Plus, Search, Trash2, Edit, Upload, X } from "lucide-react";
 import { toast } from "sonner";
+
+interface CollectionForm {
+  name: string;
+  slug: string;
+  description: string;
+  imageUrl: string;
+  isFeatured: boolean;
+}
+
+const EMPTY_FORM: CollectionForm = { name: "", slug: "", description: "", imageUrl: "", isFeatured: false };
 
 export default function AdminCollectionsPage() {
   const queryClient = useQueryClient();
@@ -21,7 +34,9 @@ export default function AdminCollectionsPage() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editItem, setEditItem] = useState<Collection | null>(null);
-  const [form, setForm] = useState({ name: "", slug: "", description: "", isFeatured: false });
+  const [form, setForm] = useState<CollectionForm>(EMPTY_FORM);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-collections", page, search],
@@ -35,15 +50,39 @@ export default function AdminCollectionsPage() {
   });
 
   const saveMutation = useMutation({
-    mutationFn: (payload: { id?: string; data: typeof form }) =>
-      payload.id ? adminApi.collections.update(payload.id, payload.data) : adminApi.collections.create(payload.data),
+    mutationFn: (payload: { id?: string; data: CollectionForm }) => {
+      const body = { ...payload.data };
+      return payload.id
+        ? adminApi.collections.update(payload.id, body as unknown as Record<string, unknown>)
+        : adminApi.collections.create(body as unknown as Record<string, unknown>);
+    },
     onSuccess: (_, payload) => {
       toast.success(payload.id ? "Updated" : "Created");
-      setFormOpen(false); setEditItem(null); setForm({ name: "", slug: "", description: "", isFeatured: false });
+      setFormOpen(false); setEditItem(null); setForm(EMPTY_FORM);
       queryClient.invalidateQueries({ queryKey: ["admin-collections"] });
     },
     onError: () => { toast.error("Failed"); },
   });
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { toast.error("Please select an image file"); return; }
+
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const response = await api.post<{ data: { url: string } }>("/api/media/upload", formData);
+      setForm(prev => ({ ...prev, imageUrl: response.data.data.url }));
+      toast.success("Image uploaded");
+    } catch {
+      toast.error("Failed to upload image");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   const handleDelete = () => { if (deleteId) deleteMutation.mutate(deleteId); };
   const handleSave = () => {
@@ -51,8 +90,12 @@ export default function AdminCollectionsPage() {
     saveMutation.mutate({ id: editItem?.id, data: form });
   };
 
-  const openEdit = (c: Collection) => { setEditItem(c); setForm({ name: c.name, slug: c.slug, description: c.description || "", isFeatured: c.isFeatured }); setFormOpen(true); };
-  const openNew = () => { setEditItem(null); setForm({ name: "", slug: "", description: "", isFeatured: false }); setFormOpen(true); };
+  const openEdit = (c: Collection) => {
+    setEditItem(c);
+    setForm({ name: c.name, slug: c.slug, description: c.description || "", imageUrl: c.imageUrl || "", isFeatured: c.isFeatured });
+    setFormOpen(true);
+  };
+  const openNew = () => { setEditItem(null); setForm(EMPTY_FORM); setFormOpen(true); };
 
   return (
     <div className="space-y-6">
@@ -71,10 +114,19 @@ export default function AdminCollectionsPage() {
           {isLoading ? <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}</div> : (
             <>
               <Table>
-                <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Slug</TableHead><TableHead>Products</TableHead><TableHead>Featured</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                <TableHeader><TableRow><TableHead>Image</TableHead><TableHead>Name</TableHead><TableHead>Slug</TableHead><TableHead>Products</TableHead><TableHead>Featured</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
                 <TableBody>
                   {data?.items.map(c => (
                     <TableRow key={c.id}>
+                      <TableCell>
+                        <div className="relative h-10 w-10 overflow-hidden rounded bg-muted">
+                          {c.imageUrl ? (
+                            <Image src={getSafeImageUrl(c.imageUrl)} alt={c.name} fill className="object-cover" sizes="40px" />
+                          ) : (
+                            <div className="flex h-full items-center justify-center text-xs text-muted-foreground">No img</div>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell className="font-medium">{c.name}</TableCell>
                       <TableCell>{c.slug}</TableCell>
                       <TableCell>{c.productCount}</TableCell>
@@ -87,7 +139,7 @@ export default function AdminCollectionsPage() {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {data?.items.length === 0 && <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">No collections found</TableCell></TableRow>}
+                  {data?.items.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No collections found</TableCell></TableRow>}
                 </TableBody>
               </Table>
               {data && data.totalPages > 1 && (
@@ -103,13 +155,62 @@ export default function AdminCollectionsPage() {
           )}
         </CardContent>
       </Card>
+
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>{editItem ? "Edit Collection" : "New Collection"}</DialogTitle></DialogHeader>
           <div className="space-y-4">
-            <div className="space-y-2"><label className="text-sm font-medium">Name *</label><Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} /></div>
-            <div className="space-y-2"><label className="text-sm font-medium">Slug *</label><Input value={form.slug} onChange={e => setForm(p => ({ ...p, slug: e.target.value }))} /></div>
-            <div className="space-y-2"><label className="text-sm font-medium">Description</label><Input value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} /></div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Collection Image</label>
+              <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+              {form.imageUrl ? (
+                <div className="relative group">
+                  <div className="relative h-40 w-full overflow-hidden rounded-lg border bg-muted">
+                    <Image src={getSafeImageUrl(form.imageUrl)} alt="Collection" fill className="object-cover" sizes="160px" />
+                  </div>
+                  <Button
+                    variant="destructive"
+                    size="icon"
+                    className="absolute top-2 right-2 h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onClick={() => setForm(prev => ({ ...prev, imageUrl: "" }))}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="flex h-40 w-full flex-col items-center justify-center rounded-lg border-2 border-dashed bg-muted/50 transition-colors hover:bg-muted"
+                >
+                  <Upload className="mb-2 h-8 w-8 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">{uploading ? "Uploading..." : "Click to upload image"}</span>
+                </button>
+              )}
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Name *</label>
+              <Input value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="Collection name" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Slug *</label>
+              <Input value={form.slug} onChange={e => setForm(p => ({ ...p, slug: e.target.value }))} placeholder="collection-slug" />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Description</label>
+              <Input value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="Brief description" />
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="col-featured"
+                checked={form.isFeatured}
+                onChange={e => setForm(p => ({ ...p, isFeatured: e.target.checked }))}
+                className="h-4 w-4 rounded"
+              />
+              <label htmlFor="col-featured" className="text-sm font-medium">Featured on homepage</label>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setFormOpen(false)}>Cancel</Button>
@@ -117,10 +218,11 @@ export default function AdminCollectionsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
       <Dialog open={!!deleteId} onOpenChange={() => setDeleteId(null)}>
         <DialogContent>
           <DialogHeader><DialogTitle>Delete Collection</DialogTitle></DialogHeader>
-          <p>Are you sure?</p>
+          <p>Are you sure? This cannot be undone.</p>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDeleteId(null)}>Cancel</Button>
             <Button variant="destructive" onClick={handleDelete} disabled={deleteMutation.isPending}>{deleteMutation.isPending ? "Deleting..." : "Delete"}</Button>

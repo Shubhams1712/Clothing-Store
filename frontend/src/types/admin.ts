@@ -235,8 +235,8 @@ export interface StoreSettings {
   socialTwitter?: string;
   socialYoutube?: string;
   razorpayKeyId?: string;
-  razorpayKeySecret?: string;
+  hasRazorpayKeySecret?: boolean;
   cloudinaryCloudName?: string;
   cloudinaryApiKey?: string;
-  cloudinaryApiSecret?: string;
+  hasCloudinaryApiSecret?: boolean;
 }

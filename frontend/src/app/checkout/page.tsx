@@ -1,24 +1,57 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Check, ChevronRight, CreditCard, MapPin, Package, Truck, ShoppingBag } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Check, ChevronRight, CreditCard, MapPin, Package, Plus, Truck, ShoppingBag, Wallet } from "lucide-react";
 import { useCart } from "@/hooks/use-cart";
 import { useAuth } from "@/hooks/use-auth";
-import { addressService, couponService, checkoutService, type Address, type CheckoutReviewResult } from "@/services/shopping";
+import { addressService, checkoutService, type Address, type CheckoutReviewResult } from "@/services/shopping";
+import { paymentService } from "@/services/payment";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { LoadingOverlay } from "@/components/feedback/loading-overlay";
+import { AddressForm } from "@/components/storefront/address-form";
 import { formatPrice, getSafeImageUrl } from "@/lib/utils";
 import { toast } from "sonner";
+
+declare global {
+  interface Window {
+    Razorpay: new (options: RazorpayOptions) => RazorpayInstance;
+  }
+}
+
+interface RazorpayOptions {
+  key: string;
+  amount: number;
+  currency: string;
+  name: string;
+  description?: string;
+  order_id: string;
+  handler: (response: RazorpayResponse) => void;
+  prefill?: { name?: string; email?: string; contact?: string };
+  theme?: { color?: string };
+  modal?: { ondismiss?: () => void };
+}
+
+interface RazorpayInstance {
+  open: () => void;
+  on: (event: string, handler: (response: { error: { description: string } }) => void) => void;
+}
+
+interface RazorpayResponse {
+  razorpay_order_id: string;
+  razorpay_payment_id: string;
+  razorpay_signature: string;
+}
 
 const STEPS = [
   { id: 1, label: "Information", icon: Package },
@@ -28,13 +61,15 @@ const STEPS = [
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const queryClient = useQueryClient();
   const { items, appliedCoupon, totalPrice, clearCart } = useCart();
   const { user, isAuthenticated } = useAuth();
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedAddressId, setSelectedAddressId] = useState<string>("");
   const [shippingMethod, setShippingMethod] = useState("standard");
+  const [paymentMethod, setPaymentMethod] = useState("razorpay");
   const [reviewResult, setReviewResult] = useState<CheckoutReviewResult | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [addressDialogOpen, setAddressDialogOpen] = useState(false);
 
   const { data: addresses = [], isLoading: addressesLoading } = useQuery({
     queryKey: ["addresses"],
@@ -66,6 +101,114 @@ export default function CheckoutPage() {
       setSelectedAddressId(defaultAddr?.id || addresses[0].id);
     }
   }, [addresses, selectedAddressId]);
+
+  const loadRazorpayScript = useCallback(() => {
+    return new Promise<boolean>((resolve) => {
+      if (document.querySelector('script[src="https://checkout.razorpay.com/v1/checkout.js"]')) {
+        resolve(true);
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
+    });
+  }, []);
+
+  const handleRazorpayPayment = async () => {
+    const loaded = await loadRazorpayScript();
+    if (!loaded) {
+      toast.error("Failed to load payment gateway");
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      const paymentOrder = await paymentService.createRazorpayOrder(grandTotal, "INR", `order-${Date.now()}`);
+
+      const options: RazorpayOptions = {
+        key: paymentOrder.keyId,
+        amount: paymentOrder.amount * 100,
+        currency: paymentOrder.currency,
+        name: "LUXE Store",
+        description: `Order #${paymentOrder.orderId.slice(-8).toUpperCase()}`,
+        order_id: paymentOrder.orderId,
+        handler: async (response: RazorpayResponse) => {
+          try {
+            const orderItems = items.map(i => ({
+              productId: i.productId,
+              variantId: i.variantId !== i.productId ? i.variantId : undefined,
+              quantity: i.quantity,
+            }));
+
+            const order = await paymentService.createOrderAfterPayment({
+              razorpayOrderId: response.razorpay_order_id,
+              razorpayPaymentId: response.razorpay_payment_id,
+              razorpaySignature: response.razorpay_signature,
+              items: orderItems,
+              couponCode: appliedCoupon?.code,
+              shippingAddressId: selectedAddressId,
+              shippingMethod,
+            });
+
+            toast.success("Payment successful! Order placed.");
+            clearCart();
+            router.push(`/orders/${order.id}`);
+          } catch {
+            toast.error("Payment verified but order creation failed. Contact support.");
+          }
+        },
+        prefill: {
+          name: user ? `${user.firstName} ${user.lastName}` : "",
+          email: user?.email || "",
+          contact: selectedAddress?.phone || "",
+        },
+        theme: { color: "#000000" },
+        modal: {
+          ondismiss: () => {
+            setIsProcessing(false);
+            toast.info("Payment cancelled");
+          },
+        },
+      };
+
+      const razorpay = new window.Razorpay(options);
+      razorpay.on("payment.failed", (response: { error: { description: string } }) => {
+        toast.error(`Payment failed: ${response.error.description}`);
+        setIsProcessing(false);
+      });
+      razorpay.open();
+    } catch {
+      toast.error("Failed to initiate payment");
+      setIsProcessing(false);
+    }
+  };
+
+  const handleCodPayment = async () => {
+    setIsProcessing(true);
+    try {
+      const orderItems = items.map(i => ({
+        productId: i.productId,
+        variantId: i.variantId !== i.productId ? i.variantId : undefined,
+        quantity: i.quantity,
+      }));
+
+      const order = await paymentService.createCodOrder({
+        items: orderItems,
+        couponCode: appliedCoupon?.code,
+        shippingAddressId: selectedAddressId,
+      });
+
+      toast.success("Order placed successfully! Pay on delivery.");
+      clearCart();
+      router.push(`/orders/${order.id}`);
+    } catch {
+      toast.error("Failed to place COD order");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   if (items.length === 0) {
     return (
@@ -111,7 +254,8 @@ export default function CheckoutPage() {
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-      {/* Progress Steps */}
+      {isProcessing && <LoadingOverlay text="Processing payment..." />}
+
       <nav className="mb-8" aria-label="Checkout progress">
         <ol className="flex items-center justify-center gap-4">
           {STEPS.map((step, index) => (
@@ -143,9 +287,7 @@ export default function CheckoutPage() {
       </nav>
 
       <div className="grid gap-8 lg:grid-cols-[1fr_400px]">
-        {/* Main Content */}
         <div>
-          {/* Step 1: Customer Information */}
           {currentStep === 1 && (
             <div className="space-y-6">
               <h2 className="text-xl font-bold">Customer Information</h2>
@@ -164,13 +306,14 @@ export default function CheckoutPage() {
                 </CardContent>
               </Card>
 
-              {/* Addresses */}
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="font-semibold">Shipping Address</h3>
-                  <Link href="/account/addresses" className="text-sm text-primary hover:underline">
-                    Manage Addresses
-                  </Link>
+                  {addresses.length > 0 && (
+                    <button type="button" onClick={() => setAddressDialogOpen(true)} className="text-sm text-primary hover:underline">
+                      Add new
+                    </button>
+                  )}
                 </div>
 
                 {addressesLoading ? (
@@ -183,10 +326,14 @@ export default function CheckoutPage() {
                   <Card>
                     <CardContent className="flex flex-col items-center justify-center p-8 text-center">
                       <MapPin className="mb-4 h-12 w-12 text-muted-foreground" />
-                      <p className="text-muted-foreground">No addresses saved yet.</p>
+                      <p className="font-medium">No addresses saved yet</p>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        Please add a shipping address to continue.
+                        Add a shipping address to continue with checkout.
                       </p>
+                      <Button className="mt-4" onClick={() => setAddressDialogOpen(true)}>
+                        <Plus className="mr-2 h-4 w-4" />
+                        Add Address
+                      </Button>
                     </CardContent>
                   </Card>
                 ) : (
@@ -209,7 +356,7 @@ export default function CheckoutPage() {
                           <div className="flex items-center gap-2">
                             <span className="font-medium">{addr.fullName}</span>
                             {addr.isDefault && <Badge variant="secondary" className="text-xs">Default</Badge>}
-                          </div                          >
+                          </div>
                           <p className="mt-1 text-sm text-muted-foreground">
                             {addr.addressLine1}
                             {addr.addressLine2 && `, ${addr.addressLine2}`}
@@ -224,14 +371,6 @@ export default function CheckoutPage() {
                     ))}
                   </RadioGroup>
                 )}
-
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  onClick={() => router.push("/account/addresses")}
-                >
-                  + Add New Address
-                </Button>
               </div>
 
               <div className="flex justify-end">
@@ -243,7 +382,6 @@ export default function CheckoutPage() {
             </div>
           )}
 
-          {/* Step 2: Shipping Method */}
           {currentStep === 2 && (
             <div className="space-y-6">
               <h2 className="text-xl font-bold">Shipping Method</h2>
@@ -288,12 +426,34 @@ export default function CheckoutPage() {
             </div>
           )}
 
-          {/* Step 3: Payment / Order Review */}
           {currentStep === 3 && (
             <div className="space-y-6">
-              <h2 className="text-xl font-bold">Order Review</h2>
+              <h2 className="text-xl font-bold">Payment Method</h2>
 
-              {/* Shipping Address Summary */}
+              <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod} className="space-y-3">
+                <label className={`flex cursor-pointer items-center gap-3 rounded-lg border p-4 transition-colors ${
+                  paymentMethod === "razorpay" ? "border-primary bg-primary/5" : "hover:border-muted-foreground/50"
+                }`}>
+                  <RadioGroupItem value="razorpay" />
+                  <CreditCard className="h-5 w-5" />
+                  <div>
+                    <p className="font-medium">Pay Online</p>
+                    <p className="text-sm text-muted-foreground">UPI, Cards, Net Banking, Wallets</p>
+                  </div>
+                </label>
+
+                <label className={`flex cursor-pointer items-center gap-3 rounded-lg border p-4 transition-colors ${
+                  paymentMethod === "cod" ? "border-primary bg-primary/5" : "hover:border-muted-foreground/50"
+                }`}>
+                  <RadioGroupItem value="cod" />
+                  <Wallet className="h-5 w-5" />
+                  <div>
+                    <p className="font-medium">Cash on Delivery</p>
+                    <p className="text-sm text-muted-foreground">Pay when your order arrives</p>
+                  </div>
+                </label>
+              </RadioGroup>
+
               <Card>
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between">
@@ -311,7 +471,6 @@ export default function CheckoutPage() {
                 </CardContent>
               </Card>
 
-              {/* Items */}
               <Card>
                 <CardContent className="p-4">
                   <p className="mb-3 text-sm font-medium text-muted-foreground">Items ({items.length})</p>
@@ -328,7 +487,7 @@ export default function CheckoutPage() {
                           />
                         </div>
                         <div className="flex-1">
-                          <p className="text-sm font-medium">{item.name}</p                          >
+                          <p className="text-sm font-medium">{item.name}</p>
                           <p className="text-xs text-muted-foreground">
                             {item.size && `Size: ${item.size}`}
                             {item.size && item.color && " | "}
@@ -347,20 +506,30 @@ export default function CheckoutPage() {
                 <Button variant="outline" onClick={() => setCurrentStep(2)}>
                   Back
                 </Button>
-                <Button size="lg" onClick={() => {
-                  toast.success("Order placed successfully! (Payment integration coming in Phase 7)");
-                  clearCart();
-                  router.push("/");
-                }}>
-                  <CreditCard className="mr-2 h-4 w-4" />
-                  Place Order - {formatPrice(grandTotal)}
+                <Button
+                  size="lg"
+                  onClick={paymentMethod === "razorpay" ? handleRazorpayPayment : handleCodPayment}
+                  disabled={isProcessing}
+                >
+                  {isProcessing ? (
+                    "Processing..."
+                  ) : paymentMethod === "razorpay" ? (
+                    <>
+                      <CreditCard className="mr-2 h-4 w-4" />
+                      Pay {formatPrice(grandTotal)}
+                    </>
+                  ) : (
+                    <>
+                      <Wallet className="mr-2 h-4 w-4" />
+                      Place Order - {formatPrice(grandTotal)}
+                    </>
+                  )}
                 </Button>
               </div>
             </div>
           )}
         </div>
 
-        {/* Order Summary Sidebar */}
         <div className="lg:sticky lg:top-24 lg:self-start">
           <Card>
             <CardHeader>
@@ -396,6 +565,21 @@ export default function CheckoutPage() {
           </Card>
         </div>
       </div>
+
+      <Dialog open={addressDialogOpen} onOpenChange={setAddressDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>{addresses.length === 0 ? "Add Shipping Address" : "Add New Address"}</DialogTitle>
+          </DialogHeader>
+          <AddressForm
+            onSuccess={(address) => {
+              setAddressDialogOpen(false);
+              setSelectedAddressId(address.id);
+            }}
+            onCancel={() => setAddressDialogOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

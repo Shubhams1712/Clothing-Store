@@ -25,10 +25,10 @@ public class StoreSettingsResponse
     public string? SocialTwitter { get; set; }
     public string? SocialYoutube { get; set; }
     public string? RazorpayKeyId { get; set; }
-    public string? RazorpayKeySecret { get; set; }
+    public bool HasRazorpayKeySecret { get; set; }
     public string? CloudinaryCloudName { get; set; }
     public string? CloudinaryApiKey { get; set; }
-    public string? CloudinaryApiSecret { get; set; }
+    public bool HasCloudinaryApiSecret { get; set; }
 }
 
 public class UpdateStoreSettingsRequest
