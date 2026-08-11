@@ -30,8 +30,10 @@ export default function AdminProductFormPage() {
     price: 0, comparePrice: 0, costPrice: 0, brand: "", tags: "",
     isFeatured: false, isPublished: false, categoryId: "",
     seoTitle: "", seoDescription: "",
+    isQikinkProduct: false, qikinkProductId: "", qikinkProductName: "",
+    designReference: "", designFileUrl: "", mockupUrl: "",
   });
-  const [variants, setVariants] = useState<Array<{ size: string; color: string; sku: string; price: number; stock: number; isAvailable: boolean }>>([]);
+  const [variants, setVariants] = useState<Array<{ size: string; color: string; sku: string; price: number; stock: number; isAvailable: boolean; qikinkSku: string }>>([]);
   const [images, setImages] = useState<Array<{ url: string; altText: string; sortOrder: number; isFeatured: boolean }>>([]);
 
   useEffect(() => {
@@ -43,8 +45,14 @@ export default function AdminProductFormPage() {
           sku: p.sku, price: p.price, comparePrice: p.comparePrice || 0, costPrice: p.costPrice || 0,
           brand: p.brand || "", tags: p.tags || "", isFeatured: p.isFeatured, isPublished: p.isPublished,
           categoryId: p.categoryId || "", seoTitle: p.seoTitle || "", seoDescription: p.seoDescription || "",
+          isQikinkProduct: p.isQikinkProduct || false, qikinkProductId: p.qikinkProductId || "",
+          qikinkProductName: p.qikinkProductName || "", designReference: p.designReference || "",
+          designFileUrl: p.designFileUrl || "", mockupUrl: p.mockupUrl || "",
         });
-        setVariants(p.variants.map(v => ({ size: v.size || "", color: v.color || "", sku: v.sku, price: v.price, stock: v.stock, isAvailable: v.isAvailable })));
+        setVariants(p.variants.map(v => ({
+          size: v.size || "", color: v.color || "", sku: v.sku, price: v.price,
+          stock: v.stock, isAvailable: v.isAvailable, qikinkSku: v.qikinkSku || "",
+        })));
         setImages(p.images.map(i => ({ url: i.url, altText: i.altText || "", sortOrder: i.sortOrder, isFeatured: i.isFeatured })));
       }).finally(() => setLoading(false));
     }
@@ -57,6 +65,17 @@ export default function AdminProductFormPage() {
       toast.error("Each variant must have a SKU and price >= ₹0.01");
       return;
     }
+    if (form.isQikinkProduct) {
+      if (!form.qikinkProductId.trim()) {
+        toast.error("Qikink Product ID is required when Qikink fulfillment is enabled");
+        return;
+      }
+      const qikinkVariants = variants.filter(v => v.qikinkSku.trim());
+      if (qikinkVariants.length === 0) {
+        toast.error("At least one variant must have a Qikink SKU when Qikink fulfillment is enabled");
+        return;
+      }
+    }
     const filteredImages = images.filter(img => img.url.trim() !== "");
     setSaving(true);
     try {
@@ -64,10 +83,16 @@ export default function AdminProductFormPage() {
         ...form,
         price: form.price < 0.01 ? 0.01 : form.price,
         categoryId: form.categoryId || undefined,
+        qikinkProductId: form.qikinkProductId.trim() || undefined,
+        qikinkProductName: form.qikinkProductName.trim() || undefined,
+        designReference: form.designReference.trim() || undefined,
+        designFileUrl: form.designFileUrl.trim() || undefined,
+        mockupUrl: form.mockupUrl.trim() || undefined,
         variants: variants.map(v => ({
           ...v,
           price: v.price < 0.01 ? 0.01 : v.price,
           stock: Math.max(0, v.stock),
+          qikinkSku: v.qikinkSku.trim() || undefined,
         })),
         images: filteredImages,
       };
@@ -86,7 +111,7 @@ export default function AdminProductFormPage() {
   };
 
   const updateForm = (field: string, value: unknown) => setForm(prev => ({ ...prev, [field]: value }));
-  const addVariant = () => setVariants(prev => [...prev, { size: "", color: "", sku: "", price: 0.01, stock: 0, isAvailable: true }]);
+  const addVariant = () => setVariants(prev => [...prev, { size: "", color: "", sku: "", price: 0.01, stock: 0, isAvailable: true, qikinkSku: "" }]);
   const removeVariant = (i: number) => setVariants(prev => prev.filter((_, idx) => idx !== i));
   const updateVariant = (i: number, field: string, value: unknown) => setVariants(prev => prev.map((v, idx) => idx === i ? { ...v, [field]: value } : v));
   const addImage = () => setImages(prev => [...prev, { url: "", altText: "", sortOrder: prev.length, isFeatured: prev.length === 0 }]);
@@ -169,12 +194,15 @@ export default function AdminProductFormPage() {
           </CardHeader>
           <CardContent className="space-y-3">
             {variants.map((v, i) => (
-              <div key={i} className="grid gap-3 md:grid-cols-6 items-end">
+              <div key={i} className="grid gap-3 items-end" style={{ gridTemplateColumns: form.isQikinkProduct ? "repeat(7, 1fr)" : "repeat(6, 1fr)" }}>
                 <Input placeholder="Size" value={v.size} onChange={e => updateVariant(i, "size", e.target.value)} />
                 <Input placeholder="Color" value={v.color} onChange={e => updateVariant(i, "color", e.target.value)} />
                 <Input placeholder="SKU" value={v.sku} onChange={e => updateVariant(i, "sku", e.target.value)} required />
                 <Input type="number" step="0.01" min="0.01" placeholder="Price" value={v.price} onChange={e => updateVariant(i, "price", Math.max(0.01, parseFloat(e.target.value) || 0.01))} />
                 <Input type="number" placeholder="Stock" value={v.stock} onChange={e => updateVariant(i, "stock", parseInt(e.target.value) || 0)} />
+                {form.isQikinkProduct && (
+                  <Input placeholder="Qikink SKU" value={v.qikinkSku} onChange={e => updateVariant(i, "qikinkSku", e.target.value)} />
+                )}
                 <Button type="button" variant="ghost" size="icon" onClick={() => removeVariant(i)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
               </div>
             ))}
@@ -206,6 +234,47 @@ export default function AdminProductFormPage() {
               </div>
             ))}
             {images.length === 0 && <p className="text-sm text-muted-foreground">No images added</p>}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader><CardTitle>Qikink Fulfillment</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Checkbox checked={form.isQikinkProduct} onCheckedChange={v => updateForm("isQikinkProduct", !!v)} />
+              <label className="text-sm font-medium">Enable Qikink fulfillment for this product</label>
+            </div>
+            {form.isQikinkProduct && (
+              <div className="space-y-4 pt-2 border-t">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Qikink Product ID *</label>
+                    <Input value={form.qikinkProductId} onChange={e => updateForm("qikinkProductId", e.target.value)} placeholder="e.g. 12345" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Qikink Product Name</label>
+                    <Input value={form.qikinkProductName} onChange={e => updateForm("qikinkProductName", e.target.value)} placeholder="Product name on Qikink" />
+                  </div>
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Design Reference / SKU</label>
+                    <Input value={form.designReference} onChange={e => updateForm("designReference", e.target.value)} placeholder="Design code from Qikink" />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Design File URL</label>
+                    <Input value={form.designFileUrl} onChange={e => updateForm("designFileUrl", e.target.value)} placeholder="https://..." />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Mockup URL</label>
+                  <Input value={form.mockupUrl} onChange={e => updateForm("mockupUrl", e.target.value)} placeholder="https://..." />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Set the Qikink SKU for each variant above. Saving this product will automatically create/update the internal fulfillment mappings.
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 

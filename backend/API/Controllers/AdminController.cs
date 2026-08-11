@@ -3,12 +3,14 @@ using Application.DTOs.User;
 using Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace API.Controllers;
 
 [ApiController]
 [Route("api/admin")]
 [Authorize(Roles = "Admin")]
+[EnableRateLimiting("global")]
 public class AdminController : ControllerBase
 {
     private readonly IUserService _userService;

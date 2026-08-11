@@ -4,12 +4,14 @@ using Application.DTOs.Common;
 using Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace API.Controllers;
 
 [ApiController]
 [Route("api/admin/categories")]
 [Authorize(Roles = "Admin,Manager")]
+[EnableRateLimiting("global")]
 public class AdminCategoriesController : ControllerBase
 {
     private readonly IAdminService _adminService;

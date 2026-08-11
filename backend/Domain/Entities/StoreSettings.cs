@@ -25,6 +25,7 @@ public class StoreSettings : BaseEntity
     public string? SocialYoutube { get; set; }
     public string? RazorpayKeyId { get; set; }
     public string? RazorpayKeySecret { get; set; }
+    public string? RazorpayWebhookSecret { get; set; }
     public string? CloudinaryCloudName { get; set; }
     public string? CloudinaryApiKey { get; set; }
     public string? CloudinaryApiSecret { get; set; }

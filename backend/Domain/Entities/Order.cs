@@ -35,4 +35,5 @@ public class Order : BaseEntity
     public DateTime? DeliveredAt { get; set; }
 
     public ICollection<OrderItem> Items { get; set; } = new List<OrderItem>();
+    public FulfillmentOrder? FulfillmentOrder { get; set; }
 }

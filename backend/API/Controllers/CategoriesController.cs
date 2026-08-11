@@ -2,11 +2,13 @@ using Application.Common.Models;
 using Application.DTOs.Storefront;
 using Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace API.Controllers;
 
 [ApiController]
 [Route("api/categories")]
+[EnableRateLimiting("global")]
 public class CategoriesController : ControllerBase
 {
     private readonly IStorefrontService _storefrontService;

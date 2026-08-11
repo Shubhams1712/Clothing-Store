@@ -46,6 +46,7 @@ export function SearchBar({ placeholder = "Search products...", className, defau
             type="button"
             onClick={handleClear}
             className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            aria-label="Clear search"
           >
             &times;
           </button>

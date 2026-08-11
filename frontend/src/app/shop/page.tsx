@@ -1,14 +1,17 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams, useRouter } from "next/navigation";
+import { SlidersHorizontal } from "lucide-react";
 import { storefrontService } from "@/services/storefront";
 import { ProductGrid } from "@/components/storefront/product-grid";
 import { ProductFilters } from "@/components/storefront/product-filters";
 import { Pagination } from "@/components/storefront/pagination";
 import { SearchBar } from "@/components/storefront/search-bar";
-import { LoadingOverlay } from "@/components/feedback/loading-overlay";
+import { ProductGridSkeleton } from "@/components/storefront/product-grid-skeleton";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import {
   Select,
   SelectContent,
@@ -20,6 +23,7 @@ import {
 function ShopContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const [filterOpen, setFilterOpen] = useState(false);
 
   const page = Number(searchParams.get("page")) || 1;
   const search = searchParams.get("q") || undefined;
@@ -74,8 +78,8 @@ function ShopContent() {
         <SearchBar placeholder="Search products..." />
 
         <div className="flex flex-col gap-6 lg:flex-row">
-          {/* Sidebar Filters */}
-          <aside className="w-full shrink-0 lg:w-64">
+          {/* Desktop Sidebar Filters */}
+          <aside className="hidden w-full shrink-0 lg:block lg:w-64">
             <ProductFilters
               categories={categories}
               sizes={sizes}
@@ -88,14 +92,46 @@ function ShopContent() {
             />
           </aside>
 
+          {/* Mobile Filter Sheet */}
+          <Sheet open={filterOpen} onOpenChange={setFilterOpen}>
+            <SheetContent side="left" className="w-72">
+              <SheetHeader>
+                <SheetTitle>Filters</SheetTitle>
+              </SheetHeader>
+              <div className="mt-4">
+                <ProductFilters
+                  categories={categories}
+                  sizes={sizes}
+                  colors={colors}
+                  selectedCategory={categorySlug}
+                  selectedSize={size}
+                  selectedColor={color}
+                  minPrice={minPrice}
+                  maxPrice={maxPrice}
+                />
+              </div>
+            </SheetContent>
+          </Sheet>
+
           {/* Products */}
           <main className="flex-1">
             <div className="mb-4 flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
-                Showing {products ? (page - 1) * 20 + 1 : 0}-
-                {products ? Math.min(page * 20, products.totalCount) : 0} of{" "}
-                {products?.totalCount ?? 0}
-              </p>
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="lg:hidden"
+                  onClick={() => setFilterOpen(true)}
+                >
+                  <SlidersHorizontal className="mr-2 h-4 w-4" />
+                  Filters
+                </Button>
+                <p className="text-sm text-muted-foreground">
+                  Showing {products ? (page - 1) * 20 + 1 : 0}-
+                  {products ? Math.min(page * 20, products.totalCount) : 0} of{" "}
+                  {products?.totalCount ?? 0}
+                </p>
+              </div>
               <Select
                 defaultValue={sortBy || "newest"}
                 onValueChange={(value) => {
@@ -125,7 +161,7 @@ function ShopContent() {
             </div>
 
             {isLoading ? (
-              <LoadingOverlay text="Loading products..." />
+              <ProductGridSkeleton count={8} />
             ) : (
               <ProductGrid products={products?.items || []} emptyMessage="No products found" />
             )}
@@ -144,7 +180,7 @@ function ShopContent() {
 
 export default function ShopPage() {
   return (
-    <Suspense fallback={<LoadingOverlay text="Loading..." />}>
+    <Suspense fallback={<div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8"><ProductGridSkeleton count={8} /></div>}>
       <ShopContent />
     </Suspense>
   );

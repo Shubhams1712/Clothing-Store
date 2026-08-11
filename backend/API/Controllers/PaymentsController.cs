@@ -4,12 +4,14 @@ using Application.DTOs.Storefront;
 using Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace API.Controllers;
 
 [ApiController]
 [Route("api/payments")]
 [Authorize]
+[EnableRateLimiting("global")]
 public class PaymentsController : ControllerBase
 {
     private readonly IPaymentService _paymentService;

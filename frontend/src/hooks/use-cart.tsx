@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, useMemo, type ReactNode } from "react";
 
 export interface CartItem {
   productId: string;
@@ -238,17 +238,19 @@ export function CartProvider({ children }: { children: ReactNode }) {
     setAppliedCoupon(null);
   }, []);
 
-  const totalItems = items.reduce((sum, i) => sum + i.quantity, 0);
-  const totalPrice = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+  const totalItems = useMemo(() => items.reduce((sum, i) => sum + i.quantity, 0), [items]);
+  const totalPrice = useMemo(() => items.reduce((sum, i) => sum + i.price * i.quantity, 0), [items]);
+
+  const value = useMemo(() => ({
+    items, savedItems, appliedCoupon,
+    addItem, removeItem, updateQuantity, clearCart,
+    saveForLater, moveToCart, removeSavedItem,
+    applyCoupon, removeCoupon,
+    totalItems, totalPrice,
+  }), [items, savedItems, appliedCoupon, addItem, removeItem, updateQuantity, clearCart, saveForLater, moveToCart, removeSavedItem, applyCoupon, removeCoupon, totalItems, totalPrice]);
 
   return (
-    <CartContext.Provider value={{
-      items, savedItems, appliedCoupon,
-      addItem, removeItem, updateQuantity, clearCart,
-      saveForLater, moveToCart, removeSavedItem,
-      applyCoupon, removeCoupon,
-      totalItems, totalPrice,
-    }}>
+    <CartContext.Provider value={value}>
       {children}
     </CartContext.Provider>
   );

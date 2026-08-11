@@ -12,4 +12,6 @@ public interface IOrderService
     Task<bool> RequestRefundAsync(Guid userId, Guid orderId, string? reason);
     Task<OrderTrackingResponse?> GetOrderTrackingAsync(Guid userId, Guid orderId);
     Task<InvoiceResponse?> GetOrderInvoiceAsync(Guid userId, Guid orderId);
+    Task HandleWebhookPaymentCapturedAsync(string razorpayOrderId, string razorpayPaymentId);
+    Task HandleWebhookPaymentFailedAsync(string razorpayOrderId, string? razorpayPaymentId);
 }

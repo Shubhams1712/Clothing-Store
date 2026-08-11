@@ -1,21 +1,26 @@
 using Application.Common.Models;
+using Application.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace API.Controllers;
 
 [ApiController]
 [Route("api/media")]
 [Authorize]
+[EnableRateLimiting("global")]
 public class MediaController : ControllerBase
 {
-    private readonly IWebHostEnvironment _environment;
+    private readonly IImageStorageService _imageStorageService;
     private readonly ILogger<MediaController> _logger;
+    private readonly IWebHostEnvironment _environment;
 
-    public MediaController(IWebHostEnvironment environment, ILogger<MediaController> logger)
+    public MediaController(IImageStorageService imageStorageService, ILogger<MediaController> logger, IWebHostEnvironment environment)
     {
-        _environment = environment;
+        _imageStorageService = imageStorageService;
         _logger = logger;
+        _environment = environment;
     }
 
     [HttpPost("upload")]
@@ -29,23 +34,18 @@ public class MediaController : ControllerBase
         if (!allowedTypes.Contains(request.File.ContentType))
             return BadRequest(ApiResponse<MediaResponse>.ErrorResponse("Invalid file type. Allowed: JPEG, PNG, WebP, GIF"));
 
-        var uploadsDir = Path.Combine(_environment.WebRootPath, "uploads");
-        Directory.CreateDirectory(uploadsDir);
-
         var ext = Path.GetExtension(request.File.FileName);
         var fileName = $"{Guid.NewGuid()}{ext}";
-        var filePath = Path.Combine(uploadsDir, fileName);
 
-        await using var stream = new FileStream(filePath, FileMode.Create);
-        await request.File.CopyToAsync(stream);
+        await using var stream = request.File.OpenReadStream();
+        var result = await _imageStorageService.UploadAsync(stream, fileName, request.File.ContentType);
 
-        var url = $"/uploads/{fileName}";
-        _logger.LogInformation("File uploaded: {FileName}", fileName);
+        _logger.LogInformation("File uploaded: {FileName} -> {Url}", fileName, result.Url);
 
         return Ok(ApiResponse<MediaResponse>.SuccessResponse(new MediaResponse
         {
-            Url = url,
-            FileName = fileName,
+            Url = result.Url,
+            FileName = result.PublicId,
             OriginalName = request.File.FileName,
             ContentType = request.File.ContentType,
             Size = request.File.Length
@@ -53,20 +53,32 @@ public class MediaController : ControllerBase
     }
 
     [HttpDelete]
-    public ActionResult Delete([FromQuery] string url)
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult> Delete([FromQuery] string url, [FromQuery] string? publicId)
     {
         if (string.IsNullOrEmpty(url))
             return BadRequest(ApiResponse<object>.ErrorResponse("URL is required"));
 
-        var fileName = Path.GetFileName(url);
-        var filePath = Path.Combine(_environment.WebRootPath, "uploads", fileName);
+        string? idToDelete = publicId;
 
-        if (System.IO.File.Exists(filePath))
+        if (string.IsNullOrEmpty(idToDelete))
         {
-            System.IO.File.Delete(filePath);
-            _logger.LogInformation("File deleted: {FileName}", fileName);
+            if (url.StartsWith("/uploads/", StringComparison.OrdinalIgnoreCase))
+            {
+                idToDelete = Path.GetFileName(url);
+            }
+            else
+            {
+                return BadRequest(ApiResponse<object>.ErrorResponse("Public ID is required for Cloudinary deletion"));
+            }
         }
 
+        var deleted = await _imageStorageService.DeleteAsync(idToDelete);
+
+        if (!deleted)
+            return NotFound(ApiResponse<object>.ErrorResponse("File not found or deletion failed"));
+
+        _logger.LogInformation("File deleted: {PublicId}", idToDelete);
         return Ok(ApiResponse<object>.SuccessResponse(new { }));
     }
 }

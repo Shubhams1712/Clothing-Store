@@ -9,7 +9,7 @@ import { CollectionCard } from "@/components/storefront/collection-card";
 import { CategoryCard } from "@/components/storefront/category-card";
 import { buttonVariants } from "@/components/ui/button";
 import { SectionWrapper } from "@/components/layout/section-wrapper";
-import { LoadingOverlay } from "@/components/feedback/loading-overlay";
+import { ProductGridSkeleton } from "@/components/storefront/product-grid-skeleton";
 
 export default function Home() {
   const { data: featuredProducts, isLoading: loadingProducts } = useQuery({
@@ -116,7 +116,7 @@ export default function Home() {
       {/* Featured Products */}
       <SectionWrapper title="Featured Products" description="Hand-picked just for you">
         {isLoading ? (
-          <LoadingOverlay text="Loading..." />
+          <ProductGridSkeleton count={8} />
         ) : featuredProducts?.items && featuredProducts.items.length > 0 ? (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
             {featuredProducts.items.map((product) => (
@@ -143,7 +143,11 @@ export default function Home() {
             Subscribe for exclusive drops, styling tips, and early access to new arrivals.
           </p>
           <div className="mx-auto mt-6 flex max-w-sm gap-2">
+            <label htmlFor="newsletter-email" className="sr-only">
+              Email address
+            </label>
             <input
+              id="newsletter-email"
               type="email"
               placeholder="Enter your email"
               className="h-10 flex-1 rounded-md border bg-background px-4 text-sm"

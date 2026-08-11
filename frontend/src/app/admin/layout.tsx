@@ -24,6 +24,8 @@ import {
   Menu,
   LogOut,
   ChevronLeft,
+  Truck,
+  BarChart3,
 } from "lucide-react";
 
 const sidebarItems = [
@@ -32,10 +34,12 @@ const sidebarItems = [
   { label: "Categories", href: "/admin/categories", icon: FolderTree },
   { label: "Collections", href: "/admin/collections", icon: Layers },
   { label: "Orders", href: "/admin/orders", icon: ShoppingCart },
+  { label: "Fulfillment", href: "/admin/fulfillment", icon: Truck },
   { label: "Customers", href: "/admin/customers", icon: Users },
   { label: "Inventory", href: "/admin/inventory", icon: Warehouse },
   { label: "Coupons", href: "/admin/coupons", icon: Tag },
   { label: "Reviews", href: "/admin/reviews", icon: Star },
+  { label: "Analytics", href: "/admin/analytics", icon: BarChart3 },
   { label: "Media", href: "/admin/media", icon: Image },
   { label: "Settings", href: "/admin/settings", icon: Settings, adminOnly: true },
   { label: "Profile", href: "/admin/profile", icon: User },
@@ -138,9 +142,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
         {/* Mobile Sidebar */}
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-          <Button variant="ghost" size="icon" className="fixed left-4 top-3 z-50 md:hidden" onClick={() => setMobileOpen(true)}>
-            <Menu className="h-5 w-5" />
-          </Button>
           <SheetContent side="left" className="w-64 p-0">
             <Sidebar collapsed={false} onToggle={() => setMobileOpen(false)} />
           </SheetContent>

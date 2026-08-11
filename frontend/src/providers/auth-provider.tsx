@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useCallback, useEffect, useState, startTransition } from "react";
+import React, { createContext, useCallback, useEffect, useState, useMemo, startTransition } from "react";
 import type { User, AuthState } from "@/types/auth";
 import { authApi } from "@/services/auth";
 
@@ -122,8 +122,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const value = useMemo(() => ({ ...state, login, register, logout, refreshAuth }), [state, login, register, logout, refreshAuth]);
+
   return (
-    <AuthContext.Provider value={{ ...state, login, register, logout, refreshAuth }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

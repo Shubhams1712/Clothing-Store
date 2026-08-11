@@ -229,6 +229,12 @@ public class AdminService : IAdminService
             IsActive = product.IsActive,
             SeoTitle = product.SeoTitle,
             SeoDescription = product.SeoDescription,
+            IsQikinkProduct = product.IsQikinkProduct,
+            QikinkProductId = product.QikinkProductId,
+            QikinkProductName = product.QikinkProductName,
+            DesignReference = product.DesignReference,
+            DesignFileUrl = product.DesignFileUrl,
+            MockupUrl = product.MockupUrl,
             CategoryId = product.CategoryId,
             CategoryName = product.Category?.Name,
             CreatedAt = product.CreatedAt,
@@ -241,7 +247,8 @@ public class AdminService : IAdminService
                 Sku = v.Sku,
                 Price = v.Price,
                 Stock = v.Stock,
-                IsAvailable = v.IsAvailable
+                IsAvailable = v.IsAvailable,
+                QikinkSku = v.QikinkSku
             }).ToList(),
             Images = product.Images.Select(i => new ProductImageResponse
             {
@@ -274,6 +281,12 @@ public class AdminService : IAdminService
             CategoryId = request.CategoryId,
             SeoTitle = request.SeoTitle,
             SeoDescription = request.SeoDescription,
+            IsQikinkProduct = request.IsQikinkProduct,
+            QikinkProductId = request.QikinkProductId?.Trim(),
+            QikinkProductName = request.QikinkProductName?.Trim(),
+            DesignReference = request.DesignReference?.Trim(),
+            DesignFileUrl = request.DesignFileUrl?.Trim(),
+            MockupUrl = request.MockupUrl?.Trim(),
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow,
             IsActive = true
@@ -281,9 +294,10 @@ public class AdminService : IAdminService
 
         _context.Products.Add(product);
 
+        var savedVariants = new List<ProductVariant>();
         foreach (var variant in request.Variants)
         {
-            _context.ProductVariants.Add(new ProductVariant
+            var productVariant = new ProductVariant
             {
                 Id = Guid.NewGuid(),
                 ProductId = product.Id,
@@ -293,10 +307,13 @@ public class AdminService : IAdminService
                 Price = variant.Price,
                 Stock = variant.Stock,
                 IsAvailable = variant.IsAvailable,
+                QikinkSku = variant.QikinkSku?.Trim(),
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
                 IsActive = true
-            });
+            };
+            savedVariants.Add(productVariant);
+            _context.ProductVariants.Add(productVariant);
         }
 
         foreach (var image in request.Images)
@@ -306,6 +323,7 @@ public class AdminService : IAdminService
                 Id = Guid.NewGuid(),
                 ProductId = product.Id,
                 Url = image.Url,
+                CloudinaryPublicId = CloudinaryUrlHelper.ExtractPublicId(image.Url),
                 AltText = image.AltText,
                 SortOrder = image.SortOrder,
                 IsFeatured = image.IsFeatured,
@@ -316,6 +334,11 @@ public class AdminService : IAdminService
         }
 
         await _context.SaveChangesAsync();
+
+        if (product.IsQikinkProduct)
+        {
+            await SyncFulfillmentMappingsAsync(product.Id, savedVariants, product);
+        }
 
         var categoryName = request.CategoryId.HasValue
             ? (await _context.Categories.FindAsync(request.CategoryId.Value))?.Name
@@ -339,6 +362,12 @@ public class AdminService : IAdminService
             IsActive = product.IsActive,
             SeoTitle = product.SeoTitle,
             SeoDescription = product.SeoDescription,
+            IsQikinkProduct = product.IsQikinkProduct,
+            QikinkProductId = product.QikinkProductId,
+            QikinkProductName = product.QikinkProductName,
+            DesignReference = product.DesignReference,
+            DesignFileUrl = product.DesignFileUrl,
+            MockupUrl = product.MockupUrl,
             CategoryId = product.CategoryId,
             CategoryName = categoryName,
             CreatedAt = product.CreatedAt,
@@ -370,6 +399,12 @@ public class AdminService : IAdminService
         product.CategoryId = request.CategoryId;
         product.SeoTitle = request.SeoTitle;
         product.SeoDescription = request.SeoDescription;
+        product.IsQikinkProduct = request.IsQikinkProduct;
+        product.QikinkProductId = request.QikinkProductId?.Trim();
+        product.QikinkProductName = request.QikinkProductName?.Trim();
+        product.DesignReference = request.DesignReference?.Trim();
+        product.DesignFileUrl = request.DesignFileUrl?.Trim();
+        product.MockupUrl = request.MockupUrl?.Trim();
 
         var existingVariants = product.Variants.ToList();
         foreach (var variant in existingVariants)
@@ -377,9 +412,10 @@ public class AdminService : IAdminService
             variant.IsActive = false;
         }
 
+        var savedVariants = new List<ProductVariant>();
         foreach (var variant in request.Variants)
         {
-            _context.ProductVariants.Add(new ProductVariant
+            var productVariant = new ProductVariant
             {
                 Id = Guid.NewGuid(),
                 ProductId = product.Id,
@@ -389,10 +425,13 @@ public class AdminService : IAdminService
                 Price = variant.Price,
                 Stock = variant.Stock,
                 IsAvailable = variant.IsAvailable,
+                QikinkSku = variant.QikinkSku?.Trim(),
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
                 IsActive = true
-            });
+            };
+            savedVariants.Add(productVariant);
+            _context.ProductVariants.Add(productVariant);
         }
 
         var existingImages = product.Images.ToList();
@@ -408,6 +447,7 @@ public class AdminService : IAdminService
                 Id = Guid.NewGuid(),
                 ProductId = product.Id,
                 Url = image.Url,
+                CloudinaryPublicId = CloudinaryUrlHelper.ExtractPublicId(image.Url),
                 AltText = image.AltText,
                 SortOrder = image.SortOrder,
                 IsFeatured = image.IsFeatured,
@@ -419,6 +459,8 @@ public class AdminService : IAdminService
 
         await _context.SaveChangesAsync();
 
+        await SyncFulfillmentMappingsAsync(product.Id, savedVariants, product);
+
         return await GetProductByIdAsync(id);
     }
 
@@ -429,6 +471,16 @@ public class AdminService : IAdminService
 
         product.IsActive = false;
         product.UpdatedAt = DateTime.UtcNow;
+
+        var mappings = await _context.ProductFulfillmentMappings
+            .Where(pfm => pfm.ProductId == id && pfm.IsActive)
+            .ToListAsync();
+        foreach (var mapping in mappings)
+        {
+            mapping.IsActive = false;
+            mapping.UpdatedAt = DateTime.UtcNow;
+        }
+
         await _context.SaveChangesAsync();
         return true;
     }
@@ -1450,5 +1502,70 @@ public class AdminService : IAdminService
             CloudinaryApiKey = settings.CloudinaryApiKey,
             HasCloudinaryApiSecret = !string.IsNullOrEmpty(settings.CloudinaryApiSecret)
         };
+    }
+
+    private async Task SyncFulfillmentMappingsAsync(Guid productId, List<ProductVariant> variants, Product product)
+    {
+        var provider = await _context.FulfillmentProviders
+            .FirstOrDefaultAsync(p => p.Name == "Qikink" && p.IsActive);
+
+        if (provider == null) return;
+
+        var existingMappings = await _context.ProductFulfillmentMappings
+            .Where(pfm => pfm.ProductId == productId && pfm.ProviderId == provider.Id)
+            .ToListAsync();
+
+        if (!product.IsQikinkProduct)
+        {
+            foreach (var mapping in existingMappings)
+            {
+                mapping.IsActive = false;
+                mapping.UpdatedAt = DateTime.UtcNow;
+            }
+            await _context.SaveChangesAsync();
+            return;
+        }
+
+        var externalProductId = product.QikinkProductId ?? string.Empty;
+
+        foreach (var mapping in existingMappings)
+        {
+            mapping.IsActive = false;
+            mapping.UpdatedAt = DateTime.UtcNow;
+        }
+
+        foreach (var variant in variants.Where(v => !string.IsNullOrEmpty(v.QikinkSku)))
+        {
+            var existingMapping = existingMappings.FirstOrDefault(m => m.ProductVariantId == variant.Id);
+            if (existingMapping != null)
+            {
+                existingMapping.IsActive = true;
+                existingMapping.ExternalProductId = externalProductId;
+                existingMapping.ExternalSku = variant.QikinkSku;
+                existingMapping.ExternalVariantId = null;
+                existingMapping.DesignReference = product.DesignReference;
+                existingMapping.DesignFileUrl = product.DesignFileUrl;
+                existingMapping.UpdatedAt = DateTime.UtcNow;
+            }
+            else
+            {
+                _context.ProductFulfillmentMappings.Add(new ProductFulfillmentMapping
+                {
+                    Id = Guid.NewGuid(),
+                    ProductId = productId,
+                    ProductVariantId = variant.Id,
+                    ProviderId = provider.Id,
+                    ExternalProductId = externalProductId,
+                    ExternalSku = variant.QikinkSku,
+                    DesignReference = product.DesignReference,
+                    DesignFileUrl = product.DesignFileUrl,
+                    IsActive = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow
+                });
+            }
+        }
+
+        await _context.SaveChangesAsync();
     }
 }

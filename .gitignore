@@ -1,10 +1,23 @@
+# Dependencies & build output
 node_modules/
 .next/
-.env.local
-.env
-*.log
 
-# Backend
-backend/bin/
-backend/obj/
+# Environment & secrets
+.env*
+appsettings.Development.json
+appsettings.Local.json
+
+# Logs
+*.log
+**/logs/
+
+# Build output
+**/bin/
+**/obj/
+
+# Uploaded files (user/product images)
+**/uploads/
+!**/wwwroot/uploads/.gitkeep
+
+# User-specific files
 backend/**/*.user

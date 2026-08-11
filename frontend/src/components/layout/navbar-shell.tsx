@@ -77,11 +77,9 @@ export function NavbarShell() {
               onClick={() => setCartOpen(true)}
             >
               <ShoppingBag className="h-5 w-5" />
-              {totalItems > 0 && (
-                <Badge className="absolute -top-1 -right-1 h-4 min-w-4 flex items-center justify-center rounded-full px-1 text-[10px]">
-                  {totalItems > 99 ? "99+" : totalItems}
-                </Badge>
-              )}
+              <Badge suppressHydrationWarning className={`absolute -top-1 -right-1 h-4 min-w-4 flex items-center justify-center rounded-full px-1 text-[10px] ${totalItems === 0 ? "invisible" : ""}`}>
+                {totalItems > 99 ? "99+" : totalItems || "0"}
+              </Badge>
               <span className="sr-only">Cart</span>
             </button>
             {isAuthenticated ? (

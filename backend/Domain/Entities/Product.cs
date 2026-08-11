@@ -19,6 +19,13 @@ public class Product : BaseEntity
     public string? SeoTitle { get; set; }
     public string? SeoDescription { get; set; }
 
+    public bool IsQikinkProduct { get; set; }
+    public string? QikinkProductId { get; set; }
+    public string? QikinkProductName { get; set; }
+    public string? DesignReference { get; set; }
+    public string? DesignFileUrl { get; set; }
+    public string? MockupUrl { get; set; }
+
     public Guid? CategoryId { get; set; }
     public Category? Category { get; set; }
 

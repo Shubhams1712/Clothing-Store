@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Application.DTOs.Storefront;
 using Application.Interfaces;
 using Infrastructure.Data;
@@ -74,6 +76,43 @@ public class PaymentService : IPaymentService
     {
         var (keyId, _) = await GetRazorpayCredentialsAsync();
         return keyId ?? string.Empty;
+    }
+
+    public bool VerifyWebhookSignature(string payload, string signature)
+    {
+        var webhookSecret = GetRazorpayWebhookSecretAsync().GetAwaiter().GetResult();
+
+        if (string.IsNullOrEmpty(webhookSecret))
+            return false;
+
+        try
+        {
+            var keyBytes = Encoding.UTF8.GetBytes(webhookSecret);
+            using var hmac = new HMACSHA256(keyBytes);
+            var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(payload));
+            var computedSignature = Convert.ToHexString(hash).ToLowerInvariant();
+            return CryptographicOperations.FixedTimeEquals(
+                Encoding.UTF8.GetBytes(computedSignature),
+                Encoding.UTF8.GetBytes(signature));
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private async Task<string?> GetRazorpayWebhookSecretAsync()
+    {
+        var settings = await _context.StoreSettings.FirstOrDefaultAsync();
+
+        if (settings != null && !string.IsNullOrEmpty(settings.RazorpayWebhookSecret))
+            return settings.RazorpayWebhookSecret;
+
+        var configSecret = _configuration["Razorpay:WebhookSecret"];
+        if (!string.IsNullOrEmpty(configSecret))
+            return configSecret;
+
+        return null;
     }
 
     private async Task<(string? KeyId, string? KeySecret)> GetRazorpayCredentialsAsync()

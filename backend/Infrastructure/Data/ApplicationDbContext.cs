@@ -31,6 +31,11 @@ public class ApplicationDbContext : DbContext
     public DbSet<Review> Reviews => Set<Review>();
     public DbSet<StoreSettings> StoreSettings => Set<StoreSettings>();
     public DbSet<Address> Addresses => Set<Address>();
+    public DbSet<FulfillmentProvider> FulfillmentProviders => Set<FulfillmentProvider>();
+    public DbSet<ProductFulfillmentMapping> ProductFulfillmentMappings => Set<ProductFulfillmentMapping>();
+    public DbSet<FulfillmentOrder> FulfillmentOrders => Set<FulfillmentOrder>();
+    public DbSet<FulfillmentOrderItem> FulfillmentOrderItems => Set<FulfillmentOrderItem>();
+    public DbSet<Shipment> Shipments => Set<Shipment>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -97,6 +102,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Details).HasMaxLength(1000);
             entity.Property(e => e.IpAddress).HasMaxLength(45);
             entity.Property(e => e.UserAgent).HasMaxLength(500);
+            entity.HasIndex(e => new { e.UserId, e.CreatedAt });
         });
 
         modelBuilder.Entity<Product>(entity =>
@@ -114,8 +120,16 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Tags).HasMaxLength(500);
             entity.Property(e => e.SeoTitle).HasMaxLength(200);
             entity.Property(e => e.SeoDescription).HasMaxLength(500);
+            entity.Property(e => e.QikinkProductId).HasMaxLength(100);
+            entity.Property(e => e.QikinkProductName).HasMaxLength(200);
+            entity.Property(e => e.DesignReference).HasMaxLength(200);
+            entity.Property(e => e.DesignFileUrl).HasMaxLength(1000);
+            entity.Property(e => e.MockupUrl).HasMaxLength(1000);
             entity.HasIndex(e => e.Slug).IsUnique().HasFilter("\"IsActive\" = true");
             entity.HasIndex(e => e.Sku).IsUnique().HasFilter("\"IsActive\" = true");
+            entity.HasIndex(e => new { e.IsActive, e.IsPublished, e.CreatedAt });
+            entity.HasIndex(e => new { e.IsActive, e.CategoryId });
+            entity.HasIndex(e => new { e.IsActive, e.Price });
             entity.HasOne(e => e.Category).WithMany(c => c.Products).HasForeignKey(e => e.CategoryId);
         });
 
@@ -126,7 +140,9 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Color).HasMaxLength(50);
             entity.Property(e => e.Sku).IsRequired().HasMaxLength(100);
             entity.Property(e => e.Price).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.QikinkSku).HasMaxLength(100);
             entity.HasIndex(e => e.Sku).IsUnique().HasFilter("\"IsActive\" = true");
+            entity.HasIndex(e => new { e.ProductId, e.IsActive, e.Stock });
             entity.HasOne(e => e.Product).WithMany(p => p.Variants).HasForeignKey(e => e.ProductId);
         });
 
@@ -134,7 +150,9 @@ public class ApplicationDbContext : DbContext
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Url).IsRequired().HasMaxLength(1000);
+            entity.Property(e => e.CloudinaryPublicId).HasMaxLength(500);
             entity.Property(e => e.AltText).HasMaxLength(200);
+            entity.HasIndex(e => new { e.ProductId, e.IsActive });
             entity.HasOne(e => e.Product).WithMany(p => p.Images).HasForeignKey(e => e.ProductId);
         });
 
@@ -190,6 +208,10 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Notes).HasMaxLength(1000);
             entity.Property(e => e.InternalNotes).HasMaxLength(1000);
             entity.HasIndex(e => e.OrderNumber).IsUnique();
+            entity.HasIndex(e => e.PaymentId).HasFilter("\"PaymentId\" IS NOT NULL AND \"PaymentMethod\" = 'Razorpay'").IsUnique();
+            entity.HasIndex(e => new { e.IsActive, e.Status });
+            entity.HasIndex(e => new { e.IsActive, e.CreatedAt });
+            entity.HasIndex(e => new { e.UserId, e.IsActive, e.CreatedAt });
             entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId);
         });
 
@@ -203,6 +225,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Color).HasMaxLength(50);
             entity.Property(e => e.UnitPrice).HasColumnType("decimal(18,2)");
             entity.Property(e => e.TotalPrice).HasColumnType("decimal(18,2)");
+            entity.HasIndex(e => new { e.OrderId, e.IsActive });
             entity.HasOne(e => e.Order).WithMany(o => o.Items).HasForeignKey(e => e.OrderId);
             entity.HasOne(e => e.Product).WithMany().HasForeignKey(e => e.ProductId);
             entity.HasOne(e => e.ProductVariant).WithMany().HasForeignKey(e => e.ProductVariantId);
@@ -225,6 +248,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
             entity.Property(e => e.Comment).HasMaxLength(2000);
             entity.Property(e => e.AdminReply).HasMaxLength(2000);
+            entity.HasIndex(e => new { e.ProductId, e.IsActive, e.IsApproved });
             entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId);
             entity.HasOne(e => e.Product).WithMany().HasForeignKey(e => e.ProductId);
         });
@@ -242,6 +266,7 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.State).IsRequired().HasMaxLength(100);
             entity.Property(e => e.Country).IsRequired().HasMaxLength(100);
             entity.Property(e => e.PostalCode).IsRequired().HasMaxLength(20);
+            entity.HasIndex(e => new { e.UserId, e.IsActive });
             entity.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId);
         });
 
@@ -269,9 +294,73 @@ public class ApplicationDbContext : DbContext
             entity.Property(e => e.SocialYoutube).HasMaxLength(500);
             entity.Property(e => e.RazorpayKeyId).HasMaxLength(200);
             entity.Property(e => e.RazorpayKeySecret).HasMaxLength(500);
+            entity.Property(e => e.RazorpayWebhookSecret).HasMaxLength(500);
             entity.Property(e => e.CloudinaryCloudName).HasMaxLength(200);
             entity.Property(e => e.CloudinaryApiKey).HasMaxLength(200);
             entity.Property(e => e.CloudinaryApiSecret).HasMaxLength(500);
+        });
+
+        modelBuilder.Entity<FulfillmentProvider>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Code).HasMaxLength(50);
+            entity.Property(e => e.ApiBaseUrl).HasMaxLength(500);
+        });
+
+        modelBuilder.Entity<ProductFulfillmentMapping>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ExternalProductId).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.ExternalVariantId).HasMaxLength(100);
+            entity.Property(e => e.ExternalSku).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.DesignReference).HasMaxLength(200);
+            entity.Property(e => e.DesignFileUrl).HasMaxLength(1000);
+            entity.Property(e => e.PrintingType).HasMaxLength(50);
+            entity.Property(e => e.PrintingPlacement).HasMaxLength(50);
+            entity.HasOne(e => e.Product).WithMany().HasForeignKey(e => e.ProductId);
+            entity.HasOne(e => e.ProductVariant).WithMany().HasForeignKey(e => e.ProductVariantId);
+            entity.HasOne(e => e.Provider).WithMany(p => p.ProductMappings).HasForeignKey(e => e.ProviderId);
+            entity.HasIndex(e => new { e.ProductId, e.ProductVariantId, e.ProviderId }).IsUnique();
+        });
+
+        modelBuilder.Entity<FulfillmentOrder>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ExternalOrderId).HasMaxLength(100);
+            entity.Property(e => e.ProviderStatus).HasMaxLength(100);
+            entity.Property(e => e.FailureReason).HasMaxLength(2000);
+            entity.Property(e => e.ErrorCategory).HasMaxLength(100);
+            entity.HasIndex(e => e.Status);
+            entity.HasOne(e => e.Order).WithOne(o => o.FulfillmentOrder).HasForeignKey<FulfillmentOrder>(e => e.OrderId);
+            entity.HasOne(e => e.Provider).WithMany(p => p.FulfillmentOrders).HasForeignKey(e => e.ProviderId);
+            entity.HasIndex(e => e.ExternalOrderId);
+        });
+
+        modelBuilder.Entity<FulfillmentOrderItem>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ExternalProductId).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.ExternalVariantId).HasMaxLength(100);
+            entity.Property(e => e.ExternalSku).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Status).HasMaxLength(100);
+            entity.Property(e => e.FailureReason).HasMaxLength(1000);
+            entity.Property(e => e.DesignReference).HasMaxLength(200);
+            entity.Property(e => e.DesignFileUrl).HasMaxLength(1000);
+            entity.Property(e => e.MockupUrl).HasMaxLength(1000);
+            entity.HasOne(e => e.FulfillmentOrder).WithMany(fo => fo.Items).HasForeignKey(e => e.FulfillmentOrderId);
+            entity.HasOne(e => e.OrderItem).WithMany().HasForeignKey(e => e.OrderItemId);
+        });
+
+        modelBuilder.Entity<Shipment>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.TrackingNumber).HasMaxLength(100);
+            entity.Property(e => e.CourierName).HasMaxLength(100);
+            entity.Property(e => e.TrackingUrl).HasMaxLength(1000);
+            entity.Property(e => e.ProviderShippingStatus).HasMaxLength(100);
+            entity.HasOne(e => e.Order).WithMany().HasForeignKey(e => e.OrderId);
+            entity.HasOne(e => e.FulfillmentOrder).WithOne(fo => fo.Shipment).HasForeignKey<Shipment>(e => e.FulfillmentOrderId);
         });
 
         SeedRoles(modelBuilder);

@@ -17,11 +17,13 @@ public class StorefrontService : IStorefrontService
 
     public async Task<PaginatedResponse<StorefrontProductResponse>> GetProductsAsync(ProductFilterRequest request)
     {
+        var pageSize = Math.Min(request.PageSize, 50);
         var query = _context.Products
             .Where(p => p.IsActive && p.IsPublished)
             .Include(p => p.Category)
             .Include(p => p.Images)
             .Include(p => p.Variants.Where(v => v.IsAvailable))
+            .AsNoTracking()
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(request.Search))
@@ -99,17 +101,20 @@ public class StorefrontService : IStorefrontService
             .Include(p => p.Category)
             .Include(p => p.Images)
             .Include(p => p.Variants)
+            .AsNoTracking()
             .FirstOrDefaultAsync();
 
         if (product == null) return null;
 
-        var reviews = await _context.Reviews
+        var reviewStats = await _context.Reviews
             .Where(r => r.ProductId == product.Id && r.IsApproved)
-            .ToListAsync();
+            .GroupBy(r => 1)
+            .Select(g => new { Count = g.Count(), Avg = g.Average(r => r.Rating) })
+            .FirstOrDefaultAsync();
 
         var response = MapToStorefrontProduct(product);
-        response.ReviewCount = reviews.Count;
-        response.AverageRating = reviews.Any() ? (decimal)reviews.Average(r => r.Rating) : 0;
+        response.ReviewCount = reviewStats?.Count ?? 0;
+        response.AverageRating = reviewStats != null ? (decimal)reviewStats.Avg : 0;
         return response;
     }
 

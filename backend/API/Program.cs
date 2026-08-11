@@ -18,6 +18,12 @@ try
 {
     builder.Host.UseSerilog();
 
+    var port = Environment.GetEnvironmentVariable("PORT");
+    if (!string.IsNullOrEmpty(port) && int.TryParse(port, out var portNumber))
+    {
+        builder.WebHost.UseUrls($"http://+:{portNumber}");
+    }
+
     builder.Services.Configure<Microsoft.AspNetCore.Server.Kestrel.Core.KestrelServerOptions>(options =>
     {
         options.Limits.MaxRequestBodySize = 10 * 1024 * 1024;
@@ -30,6 +36,7 @@ try
     var app = builder.Build();
 
     app.UseMiddleware<ExceptionMiddleware>();
+    app.UseMiddleware<SecurityHeadersMiddleware>();
     app.UseMiddleware<RequestLoggingMiddleware>();
 
     if (app.Environment.IsDevelopment())
@@ -42,6 +49,8 @@ try
     app.UseCors("AllowFrontend");
 
     app.UseStaticFiles();
+
+    app.MigrateDatabase();
 
     app.UseAuthentication();
     app.UseAuthorization();

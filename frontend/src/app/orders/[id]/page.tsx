@@ -5,9 +5,11 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Package, Truck, CheckCircle, Clock, XCircle, RotateCcw } from "lucide-react";
+import { ArrowLeft, Package, Truck, CheckCircle, Clock, XCircle, RotateCcw, ExternalLink } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { orderService, type CustomerOrder, type OrderTracking } from "@/services/payment";
+import { fulfillmentService } from "@/services/fulfillment";
+import type { FulfillmentOrder } from "@/types/fulfillment";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -73,6 +75,12 @@ export default function OrderDetailPage() {
   const { data: tracking } = useQuery({
     queryKey: ["order-tracking", orderId],
     queryFn: () => orderService.getOrderTracking(orderId),
+    enabled: isAuthenticated && !!orderId,
+  });
+
+  const { data: fulfillment } = useQuery({
+    queryKey: ["fulfillment-order", orderId],
+    queryFn: () => fulfillmentService.getOrder(orderId),
     enabled: isAuthenticated && !!orderId,
   });
 
@@ -252,6 +260,44 @@ export default function OrderDetailPage() {
                     </div>
                   );
                 })}
+              </div>
+            </div>
+          )}
+
+          {fulfillment && fulfillment.shipment && (
+            <div className="rounded-lg border bg-card p-5">
+              <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+                Shipment Details
+              </h2>
+              <div className="space-y-3">
+                {fulfillment.shipment.trackingNumber && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Tracking ID</span>
+                    <span className="font-mono text-sm">{fulfillment.shipment.trackingNumber}</span>
+                  </div>
+                )}
+                {fulfillment.shipment.courierName && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground">Courier</span>
+                    <span className="text-sm">{fulfillment.shipment.courierName}</span>
+                  </div>
+                )}
+                {fulfillment.shipment.trackingUrl && (
+                  <a
+                    href={fulfillment.shipment.trackingUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-sm text-primary hover:underline"
+                  >
+                    Track Package <ExternalLink className="h-3 w-3" />
+                  </a>
+                )}
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Status</span>
+                  <Badge className={STATUS_STYLES[fulfillment.status] || "bg-gray-100 text-gray-800"}>
+                    {fulfillment.shipment.providerShippingStatus || fulfillment.status}
+                  </Badge>
+                </div>
               </div>
             </div>
           )}

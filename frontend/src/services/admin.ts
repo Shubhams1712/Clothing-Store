@@ -13,6 +13,14 @@ import type {
   Review,
   DashboardStats,
   StoreSettings,
+  AnalyticsDateRange,
+  DashboardAnalytics,
+  SalesAnalytics,
+  ProductAnalytics,
+  CustomerAnalytics,
+  InventoryAnalytics,
+  OrderAnalytics,
+  ReportExportRequest,
 } from "@/types/admin";
 
 function buildQueryString(params: Record<string, string | number | boolean | undefined>): string {
@@ -199,6 +207,45 @@ export const adminApi = {
     },
     updateStock: async (variantId: string, stock: number) => {
       await api.put(`${API_CONFIG.ENDPOINTS.ADMIN.INVENTORY}/${variantId}`, { stock });
+    },
+  },
+
+  analytics: {
+    getDashboard: async (dateRange: AnalyticsDateRange = {}) => {
+      const query = buildQueryString(dateRange as Record<string, string | number | boolean | undefined>);
+      const response = await api.get<{ data: DashboardAnalytics }>(`${API_CONFIG.ENDPOINTS.ADMIN.ANALYTICS}/dashboard${query}`);
+      return response.data.data;
+    },
+    getSales: async (dateRange: AnalyticsDateRange = {}) => {
+      const query = buildQueryString(dateRange as Record<string, string | number | boolean | undefined>);
+      const response = await api.get<{ data: SalesAnalytics }>(`${API_CONFIG.ENDPOINTS.ADMIN.ANALYTICS}/sales${query}`);
+      return response.data.data;
+    },
+    getProducts: async (dateRange: AnalyticsDateRange = {}) => {
+      const query = buildQueryString(dateRange as Record<string, string | number | boolean | undefined>);
+      const response = await api.get<{ data: ProductAnalytics }>(`${API_CONFIG.ENDPOINTS.ADMIN.ANALYTICS}/products${query}`);
+      return response.data.data;
+    },
+    getCustomers: async (dateRange: AnalyticsDateRange = {}) => {
+      const query = buildQueryString(dateRange as Record<string, string | number | boolean | undefined>);
+      const response = await api.get<{ data: CustomerAnalytics }>(`${API_CONFIG.ENDPOINTS.ADMIN.ANALYTICS}/customers${query}`);
+      return response.data.data;
+    },
+    getInventory: async (dateRange: AnalyticsDateRange = {}) => {
+      const query = buildQueryString(dateRange as Record<string, string | number | boolean | undefined>);
+      const response = await api.get<{ data: InventoryAnalytics }>(`${API_CONFIG.ENDPOINTS.ADMIN.ANALYTICS}/inventory${query}`);
+      return response.data.data;
+    },
+    getOrders: async (dateRange: AnalyticsDateRange = {}) => {
+      const query = buildQueryString(dateRange as Record<string, string | number | boolean | undefined>);
+      const response = await api.get<{ data: OrderAnalytics }>(`${API_CONFIG.ENDPOINTS.ADMIN.ANALYTICS}/orders${query}`);
+      return response.data.data;
+    },
+    exportReport: async (request: ReportExportRequest) => {
+      const response = await api.post(`${API_CONFIG.ENDPOINTS.ADMIN.ANALYTICS}/reports/export`, request, {
+        responseType: "blob",
+      });
+      return response.data;
     },
   },
 };

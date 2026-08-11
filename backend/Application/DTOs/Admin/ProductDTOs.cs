@@ -45,6 +45,23 @@ public class CreateProductRequest
     [MaxLength(500)]
     public string? SeoDescription { get; set; }
 
+    public bool IsQikinkProduct { get; set; }
+
+    [MaxLength(100)]
+    public string? QikinkProductId { get; set; }
+
+    [MaxLength(200)]
+    public string? QikinkProductName { get; set; }
+
+    [MaxLength(200)]
+    public string? DesignReference { get; set; }
+
+    [MaxLength(1000)]
+    public string? DesignFileUrl { get; set; }
+
+    [MaxLength(1000)]
+    public string? MockupUrl { get; set; }
+
     public List<CreateProductVariantRequest> Variants { get; set; } = new();
     public List<CreateProductImageRequest> Images { get; set; } = new();
 }
@@ -92,6 +109,23 @@ public class UpdateProductRequest
     [MaxLength(500)]
     public string? SeoDescription { get; set; }
 
+    public bool IsQikinkProduct { get; set; }
+
+    [MaxLength(100)]
+    public string? QikinkProductId { get; set; }
+
+    [MaxLength(200)]
+    public string? QikinkProductName { get; set; }
+
+    [MaxLength(200)]
+    public string? DesignReference { get; set; }
+
+    [MaxLength(1000)]
+    public string? DesignFileUrl { get; set; }
+
+    [MaxLength(1000)]
+    public string? MockupUrl { get; set; }
+
     public List<CreateProductVariantRequest> Variants { get; set; } = new();
     public List<CreateProductImageRequest> Images { get; set; } = new();
 }
@@ -116,6 +150,9 @@ public class CreateProductVariantRequest
     public int Stock { get; set; }
 
     public bool IsAvailable { get; set; } = true;
+
+    [MaxLength(100)]
+    public string? QikinkSku { get; set; }
 }
 
 public class CreateProductImageRequest
@@ -149,6 +186,12 @@ public class ProductResponse
     public bool IsActive { get; set; }
     public string? SeoTitle { get; set; }
     public string? SeoDescription { get; set; }
+    public bool IsQikinkProduct { get; set; }
+    public string? QikinkProductId { get; set; }
+    public string? QikinkProductName { get; set; }
+    public string? DesignReference { get; set; }
+    public string? DesignFileUrl { get; set; }
+    public string? MockupUrl { get; set; }
     public Guid? CategoryId { get; set; }
     public string? CategoryName { get; set; }
     public DateTime CreatedAt { get; set; }
@@ -166,6 +209,7 @@ public class ProductVariantResponse
     public decimal Price { get; set; }
     public int Stock { get; set; }
     public bool IsAvailable { get; set; }
+    public string? QikinkSku { get; set; }
 }
 
 public class ProductImageResponse

@@ -1,5 +1,19 @@
+function getBaseUrl(): string {
+  const url = process.env.NEXT_PUBLIC_API_URL;
+  if (url) return url;
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "NEXT_PUBLIC_API_URL is not set. " +
+      "Define it in your environment variables for production builds."
+    );
+  }
+
+  return "http://localhost:5000";
+}
+
 export const API_CONFIG = {
-  BASE_URL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000",
+  BASE_URL: getBaseUrl(),
   TIMEOUT: 15000,
   ENDPOINTS: {
     HEALTH: "/api/health",
@@ -42,6 +56,7 @@ export const API_CONFIG = {
       REVIEWS: "/api/admin/reviews",
       SETTINGS: "/api/admin/settings",
       INVENTORY: "/api/admin/inventory",
+      ANALYTICS: "/api/admin/analytics",
     },
     MEDIA: {
       UPLOAD: "/api/media/upload",

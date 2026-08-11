@@ -9,6 +9,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { reviewService, type StorefrontReview, type RatingDistribution } from "@/services/reviews";
 import { useAuth } from "@/hooks/use-auth";
 import { toast } from "sonner";
@@ -92,7 +99,7 @@ export function ReviewsSection({ productId, reviewCount, averageRating }: Review
       {/* Rating Summary */}
       <div className="grid gap-6 md:grid-cols-[200px_1fr]">
         <div className="flex flex-col items-center justify-center space-y-2">
-          <span className="text-4xl font-bold">{averageRating.toFixed(1)}</span          >
+          <span className="text-4xl font-bold">{averageRating.toFixed(1)}</span>
           <div className="flex">
             {[...Array(5)].map((_, i) => (
               <Star
@@ -199,17 +206,17 @@ export function ReviewsSection({ productId, reviewCount, averageRating }: Review
       {/* Sort */}
       <div className="flex items-center gap-4">
         <span className="text-sm text-muted-foreground">Sort by:</span>
-        <select
-          value={sortBy}
-          onChange={e => setSortBy(e.target.value)}
-          className="rounded-md border bg-background px-3 py-1.5 text-sm"
-          aria-label="Sort reviews"
-        >
-          <option value="newest">Newest</option>
-          <option value="oldest">Oldest</option>
-          <option value="rating_high">Highest Rating</option>
-          <option value="rating_low">Lowest Rating</option>
-        </select>
+        <Select value={sortBy} onValueChange={(value) => value && setSortBy(value)}>
+          <SelectTrigger className="w-[180px]" aria-label="Sort reviews">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="newest">Newest</SelectItem>
+            <SelectItem value="oldest">Oldest</SelectItem>
+            <SelectItem value="rating_high">Highest Rating</SelectItem>
+            <SelectItem value="rating_low">Lowest Rating</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Reviews List */}
@@ -224,9 +231,16 @@ export function ReviewsSection({ productId, reviewCount, averageRating }: Review
           ))}
         </div>
       ) : reviewsData?.items.length === 0 ? (
-        <p className="text-center text-muted-foreground py-8">
-          No reviews yet. Be the first to review this product!
-        </p>
+        <div className="flex flex-col items-center justify-center py-12 text-center">
+          <MessageSquare className="mb-4 h-10 w-10 text-muted-foreground" />
+          <p className="font-medium">No reviews yet</p>
+          <p className="mt-1 text-sm text-muted-foreground">Be the first to review this product!</p>
+          {user && !showForm && (
+            <Button variant="outline" size="sm" className="mt-4" onClick={() => setShowForm(true)}>
+              Write a Review
+            </Button>
+          )}
+        </div>
       ) : (
         <div className="space-y-6">
           {reviewsData?.items.map((review: StorefrontReview) => (

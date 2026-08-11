@@ -33,6 +33,12 @@ export interface Product {
   isActive: boolean;
   seoTitle?: string;
   seoDescription?: string;
+  isQikinkProduct: boolean;
+  qikinkProductId?: string;
+  qikinkProductName?: string;
+  designReference?: string;
+  designFileUrl?: string;
+  mockupUrl?: string;
   categoryId?: string;
   categoryName?: string;
   createdAt: string;
@@ -49,6 +55,7 @@ export interface ProductVariant {
   price: number;
   stock: number;
   isAvailable: boolean;
+  qikinkSku?: string;
 }
 
 export interface ProductImage {
@@ -240,3 +247,170 @@ export interface StoreSettings {
   cloudinaryApiKey?: string;
   hasCloudinaryApiSecret?: boolean;
 }
+
+export interface AnalyticsDateRange {
+  preset?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface DashboardAnalytics {
+  totalRevenue: number;
+  totalOrders: number;
+  averageOrderValue: number;
+  totalCustomers: number;
+  newCustomers: number;
+  refunds: number;
+  pendingOrders: number;
+  lowStockProducts: number;
+  conversionRate: number;
+  revenueOverTime: DailyRevenuePoint[];
+}
+
+export interface DailyRevenuePoint {
+  date: string;
+  revenue: number;
+  orders: number;
+}
+
+export interface SalesAnalytics {
+  totalRevenue: number;
+  averageOrderValue: number;
+  totalOrders: number;
+  totalDiscounts: number;
+  totalRefunds: number;
+  revenueOverTime: DailyRevenuePoint[];
+  revenueByPaymentMethod: PaymentMethodBreakdown[];
+  revenueByCategory: CategoryRevenue[];
+  revenueByCollection: CollectionRevenue[];
+  topCoupons: CouponUsage[];
+}
+
+export interface PaymentMethodBreakdown {
+  paymentMethod: string;
+  revenue: number;
+  orderCount: number;
+}
+
+export interface CategoryRevenue {
+  categoryName: string;
+  revenue: number;
+  orderCount: number;
+}
+
+export interface CollectionRevenue {
+  collectionName: string;
+  revenue: number;
+  orderCount: number;
+}
+
+export interface CouponUsage {
+  code: string;
+  usedCount: number;
+  totalDiscount: number;
+}
+
+export interface ProductAnalytics {
+  bestSelling: ProductSalesInfo[];
+  worstPerforming: ProductSalesInfo[];
+  lowStock: ProductStockInfo[];
+  outOfStock: ProductStockInfo[];
+}
+
+export interface ProductSalesInfo {
+  productId: string;
+  productName: string;
+  imageUrl?: string;
+  totalSold: number;
+  revenue: number;
+}
+
+export interface ProductStockInfo {
+  productId: string;
+  productName: string;
+  imageUrl?: string;
+  totalStock: number;
+  variantCount: number;
+}
+
+export interface CustomerAnalytics {
+  totalCustomers: number;
+  newCustomers: number;
+  returningCustomers: number;
+  repeatPurchaseRate: number;
+  averageLifetimeValue: number;
+  customerGrowth: CustomerGrowthPoint[];
+  topCustomers: TopCustomerInfo[];
+}
+
+export interface CustomerGrowthPoint {
+  date: string;
+  newCustomers: number;
+  totalCustomers: number;
+}
+
+export interface TopCustomerInfo {
+  customerId: string;
+  customerName: string;
+  email: string;
+  orderCount: number;
+  totalSpent: number;
+}
+
+export interface InventoryAnalytics {
+  totalInventoryValue: number;
+  totalProducts: number;
+  totalVariants: number;
+  lowStockCount: number;
+  outOfStockCount: number;
+  fastMoving: FastMovingProduct[];
+  slowMoving: SlowMovingProduct[];
+  stockAlerts: StockAlert[];
+}
+
+export interface FastMovingProduct {
+  productId: string;
+  productName: string;
+  totalSold: number;
+  currentStock: number;
+}
+
+export interface SlowMovingProduct {
+  productId: string;
+  productName: string;
+  totalSold: number;
+  currentStock: number;
+}
+
+export interface StockAlert {
+  variantId: string;
+  productName: string;
+  sku: string;
+  size?: string;
+  color?: string;
+  stock: number;
+}
+
+export interface OrderAnalytics {
+  totalOrders: number;
+  cancelledOrders: number;
+  refundedOrders: number;
+  averageFulfillmentTime: number;
+  ordersByStatus: OrderStatusBreakdown[];
+  ordersOverTime: DailyRevenuePoint[];
+}
+
+export interface OrderStatusBreakdown {
+  status: string;
+  count: number;
+  percentage: number;
+}
+
+export interface ReportExportRequest {
+  reportType: string;
+  format: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+

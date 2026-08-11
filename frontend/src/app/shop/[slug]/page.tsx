@@ -28,7 +28,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { LoadingOverlay } from "@/components/feedback/loading-overlay";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ProductGrid } from "@/components/storefront/product-grid";
 import { ProductImageGallery } from "@/components/storefront/product-image-gallery";
 import { ReviewsSection } from "@/components/storefront/reviews-section";
@@ -158,7 +158,88 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
     }
   };
 
-  if (isLoading) return <LoadingOverlay text="Loading product..." />;
+  if (isLoading) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        {/* Breadcrumb skeleton */}
+        <div className="mb-6 flex items-center gap-2">
+          <Skeleton className="h-4 w-12" />
+          <Skeleton className="h-4 w-1" />
+          <Skeleton className="h-4 w-12" />
+          <Skeleton className="h-4 w-1" />
+          <Skeleton className="h-4 w-32" />
+        </div>
+
+        {/* Product layout skeleton - matches final 2-column grid */}
+        <div className="grid gap-8 lg:grid-cols-2">
+          {/* Image gallery skeleton */}
+          <div className="space-y-4">
+            <Skeleton className="aspect-[3/4] w-full rounded-lg" />
+            <div className="flex gap-2">
+              {[1, 2, 3, 4].map((i) => (
+                <Skeleton key={i} className="h-20 w-20 rounded" />
+              ))}
+            </div>
+          </div>
+
+          {/* Details skeleton */}
+          <div className="space-y-6">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-9 w-3/4" />
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-8 w-32" />
+            <Skeleton className="h-4 w-48" />
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-16" />
+              <div className="flex gap-2">
+                {[1, 2, 3].map((i) => (
+                  <Skeleton key={i} className="h-9 w-9 rounded" />
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-12" />
+              <div className="flex gap-2">
+                {[1, 2, 3, 4].map((i) => (
+                  <Skeleton key={i} className="h-9 w-14 rounded" />
+                ))}
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <Skeleton className="h-12 flex-1 rounded" />
+              <Skeleton className="h-12 w-12 rounded" />
+            </div>
+          </div>
+        </div>
+
+        {/* Tabs skeleton */}
+        <div className="mt-16 space-y-4">
+          <Skeleton className="h-10 w-full max-w-md" />
+          <Skeleton className="h-48 w-full rounded" />
+        </div>
+
+        {/* Reviews skeleton */}
+        <div className="mt-16 space-y-4">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-32 w-full rounded" />
+        </div>
+
+        {/* Related products skeleton */}
+        <div className="mt-16 space-y-4">
+          <Skeleton className="h-8 w-48" />
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="space-y-2">
+                <Skeleton className="aspect-[3/4] w-full rounded-lg" />
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
   if (!product) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center">
@@ -347,7 +428,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
           <div>
             <label htmlFor="quantity-input" className="mb-2 block text-sm font-medium">
               Quantity {selectedVariant && `(Max: ${maxStock})`}
-            </label            >
+            </label>
             <div className="flex items-center gap-3">
               <div className="flex items-center border rounded-md">
                 <Button
@@ -490,7 +571,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
         <Tabs defaultValue="description">
           <TabsList>
             <TabsTrigger value="description">Description</TabsTrigger>
-            <TabsTrigger value="specifications">Specifications</TabsTrigger            >
+            <TabsTrigger value="specifications">Specifications</TabsTrigger>
             <TabsTrigger value="shipping">Shipping & Returns</TabsTrigger>
           </TabsList>
 
@@ -554,12 +635,22 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
       </div>
 
       {/* Related Products */}
-      {relatedProducts?.items && relatedProducts.items.length > 0 && (
-        <div className="mt-16">
-          <h2 className="mb-6 text-2xl font-bold">You May Also Like</h2>
+      <div className="mt-16">
+        <h2 className="mb-6 text-2xl font-bold">You May Also Like</h2>
+        {relatedProducts?.items && relatedProducts.items.length > 0 ? (
           <ProductGrid products={relatedProducts.items.filter(p => p.id !== product.id)} />
-        </div>
-      )}
+        ) : (
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="space-y-2">
+                <Skeleton className="aspect-[3/4] w-full rounded-lg" />
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

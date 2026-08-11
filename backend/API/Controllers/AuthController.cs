@@ -3,11 +3,13 @@ using Application.DTOs.Auth;
 using Application.DTOs.Admin;
 using Application.Interfaces;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace API.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[EnableRateLimiting("global")]
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
@@ -18,6 +20,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("register")]
+    [EnableRateLimiting("auth")]
     public async Task<ActionResult<ApiResponse<object>>> Register([FromBody] RegisterRequest request)
     {
         var result = await _authService.RegisterAsync(request, GetIpAddress());
@@ -30,6 +33,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("login")]
+    [EnableRateLimiting("auth")]
     public async Task<ActionResult<ApiResponse<AuthResponse>>> Login([FromBody] LoginRequest request)
     {
         var result = await _authService.LoginAsync(request, GetIpAddress(), GetUserAgent());
@@ -65,6 +69,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("forgot-password")]
+    [EnableRateLimiting("auth")]
     public async Task<ActionResult<ApiResponse<object>>> ForgotPassword([FromBody] ForgotPasswordRequest request)
     {
         var result = await _authService.ForgotPasswordAsync(request);
@@ -72,6 +77,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("reset-password")]
+    [EnableRateLimiting("auth")]
     public async Task<ActionResult<ApiResponse<object>>> ResetPassword([FromBody] ResetPasswordRequest request)
     {
         var result = await _authService.ResetPasswordAsync(request);
@@ -84,6 +90,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("verify-email")]
+    [EnableRateLimiting("auth")]
     public async Task<ActionResult<ApiResponse<object>>> VerifyEmail([FromBody] VerifyEmailRequest request)
     {
         var result = await _authService.VerifyEmailAsync(request);
@@ -96,6 +103,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("admin/login")]
+    [EnableRateLimiting("auth")]
     public async Task<ActionResult<ApiResponse<AuthResponse>>> AdminLogin([FromBody] AdminLoginRequest request)
     {
         var result = await _authService.AdminLoginAsync(request, GetIpAddress(), GetUserAgent());

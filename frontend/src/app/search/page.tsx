@@ -7,7 +7,7 @@ import { storefrontService } from "@/services/storefront";
 import { ProductGrid } from "@/components/storefront/product-grid";
 import { Pagination } from "@/components/storefront/pagination";
 import { SearchBar } from "@/components/storefront/search-bar";
-import { LoadingOverlay } from "@/components/feedback/loading-overlay";
+import { ProductGridSkeleton } from "@/components/storefront/product-grid-skeleton";
 
 function SearchContent() {
   const searchParams = useSearchParams();
@@ -44,7 +44,7 @@ function SearchContent() {
             <p className="text-muted-foreground">Enter a search term to find products.</p>
           </div>
         ) : isLoading ? (
-          <LoadingOverlay text="Searching..." />
+          <ProductGridSkeleton count={8} />
         ) : (
           <>
             <ProductGrid
@@ -65,7 +65,7 @@ function SearchContent() {
 
 export default function SearchPage() {
   return (
-    <Suspense fallback={<LoadingOverlay text="Loading..." />}>
+    <Suspense fallback={<div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8"><ProductGridSkeleton count={8} /></div>}>
       <SearchContent />
     </Suspense>
   );

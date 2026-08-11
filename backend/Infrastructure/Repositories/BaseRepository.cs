@@ -21,6 +21,7 @@ public class BaseRepository<T> : IRepository<T> where T : BaseEntity
     public virtual async Task<IReadOnlyList<T>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         return await _context.Set<T>()
+            .AsNoTracking()
             .Where(e => e.IsActive)
             .ToListAsync(cancellationToken);
     }

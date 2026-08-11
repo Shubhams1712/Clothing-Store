@@ -6,6 +6,14 @@ import { addressService, type Address, type CreateAddressPayload } from "@/servi
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 
 interface AddressFormProps {
@@ -123,17 +131,16 @@ export function AddressForm({ initialData, onSuccess, onCancel }: AddressFormPro
         </div>
         <div className="space-y-2">
           <Label htmlFor="addr-state">State *</Label>
-          <select
-            id="addr-state"
-            value={form.state}
-            onChange={e => updateField("state", e.target.value)}
-            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-          >
-            <option value="">Select state</option>
-            {INDIAN_STATES.map(s => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
+          <Select value={form.state} onValueChange={(value) => value && updateField("state", value)}>
+            <SelectTrigger id="addr-state" aria-label="Select state">
+              <SelectValue placeholder="Select state" />
+            </SelectTrigger>
+            <SelectContent>
+              {INDIAN_STATES.map(s => (
+                <SelectItem key={s} value={s}>{s}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           {errors.state && <p className="text-xs text-destructive">{errors.state}</p>}
         </div>
         <div className="space-y-2">
@@ -144,12 +151,10 @@ export function AddressForm({ initialData, onSuccess, onCancel }: AddressFormPro
       </div>
 
       <div className="flex items-center gap-2">
-        <input
-          type="checkbox"
+        <Checkbox
           id="addr-default"
           checked={form.isDefault}
-          onChange={e => updateField("isDefault", e.target.checked)}
-          className="h-4 w-4 rounded border-gray-300"
+          onCheckedChange={(checked) => updateField("isDefault", checked === true)}
         />
         <Label htmlFor="addr-default" className="text-sm font-normal">Set as default address</Label>
       </div>
