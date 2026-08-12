@@ -8,6 +8,8 @@ using Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Infrastructure.Services;
 
 namespace Infrastructure.Services;
 
@@ -17,23 +19,29 @@ public class AuthService : IAuthService
     private readonly IPasswordHasher _passwordHasher;
     private readonly ITokenService _tokenService;
     private readonly IAuditService _auditService;
+    private readonly IEmailService _emailService;
     private readonly IWebHostEnvironment _env;
     private readonly ILogger<AuthService> _logger;
+    private readonly EmailSettings _emailSettings;
 
     public AuthService(
         ApplicationDbContext context,
         IPasswordHasher passwordHasher,
         ITokenService tokenService,
         IAuditService auditService,
+        IEmailService emailService,
         IWebHostEnvironment env,
-        ILogger<AuthService> logger)
+        ILogger<AuthService> logger,
+        IOptions<EmailSettings> emailSettings)
     {
         _context = context;
         _passwordHasher = passwordHasher;
         _tokenService = tokenService;
         _auditService = auditService;
+        _emailService = emailService;
         _env = env;
         _logger = logger;
+        _emailSettings = emailSettings.Value;
     }
 
     public async Task<ApiResponse<object>> RegisterAsync(RegisterRequest request, string? ipAddress = null)
@@ -99,7 +107,7 @@ public class AuthService : IAuthService
 
         if (_env.EnvironmentName == "Development")
         {
-            var verificationLink = $"http://localhost:3000/verify-email?token={Uri.EscapeDataString(verificationToken.Token)}&email={Uri.EscapeDataString(user.Email)}";
+            var verificationLink = $"{_emailSettings.FrontendUrl.TrimEnd('/')}/verify-email?token={Uri.EscapeDataString(verificationToken.Token)}&email={Uri.EscapeDataString(user.Email)}";
             _logger.LogInformation("=== EMAIL VERIFICATION (Development Mode) ===");
             _logger.LogInformation("User: {Email}", user.Email);
             _logger.LogInformation("Verification Link: {Link}", verificationLink);
@@ -108,6 +116,18 @@ public class AuthService : IAuthService
             user.IsEmailVerified = true;
             user.UpdatedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync();
+        }
+        else
+        {
+            var emailSent = await _emailService.SendVerificationEmailAsync(
+                user.Email,
+                verificationToken.Token,
+                user.Email);
+
+            if (!emailSent)
+            {
+                _logger.LogWarning("Failed to send verification email to {Email}. User can request a new verification email.", user.Email);
+            }
         }
 
         return ApiResponse<object>.SuccessResponse(new { }, "Registration successful. Please verify your email.");
@@ -253,6 +273,22 @@ public class AuthService : IAuthService
         await _context.SaveChangesAsync();
 
         await _auditService.LogAsync(user.Id, AuditAction.PasswordReset, "Password reset requested");
+
+        if (_env.EnvironmentName != "Development")
+        {
+            await _emailService.SendPasswordResetEmailAsync(
+                user.Email,
+                resetToken.Token,
+                user.Email);
+        }
+        else
+        {
+            var resetLink = $"{_emailSettings.FrontendUrl.TrimEnd('/')}/reset-password?token={Uri.EscapeDataString(resetToken.Token)}&email={Uri.EscapeDataString(user.Email)}";
+            _logger.LogInformation("=== PASSWORD RESET (Development Mode) ===");
+            _logger.LogInformation("User: {Email}", user.Email);
+            _logger.LogInformation("Reset Link: {Link}", resetLink);
+            _logger.LogInformation("==========================================");
+        }
 
         return ApiResponse<object>.SuccessResponse(new { }, "If the email exists, a reset link has been sent");
     }
