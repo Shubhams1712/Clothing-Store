@@ -10,28 +10,14 @@ namespace Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropIndex(
-                name: "IX_FulfillmentOrders_OrderId",
-                table: "FulfillmentOrders");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_FulfillmentOrders_OrderId",
-                table: "FulfillmentOrders",
-                column: "OrderId",
-                unique: true);
+            // No-op: this migration referenced tables that were never created by a prior
+            // migration.  Its operations are now handled by AddMissingFulfillmentTables.
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropIndex(
-                name: "IX_FulfillmentOrders_OrderId",
-                table: "FulfillmentOrders");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_FulfillmentOrders_OrderId",
-                table: "FulfillmentOrders",
-                column: "OrderId");
+            // No-op: Up() is a no-op.
         }
     }
 }
