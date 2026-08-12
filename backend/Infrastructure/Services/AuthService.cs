@@ -160,6 +160,8 @@ public class AuthService : IAuthService
         user.UpdatedAt = DateTime.UtcNow;
 
         var roles = user.UserRoles.Select(ur => ur.Role.Name).ToList();
+        if (user.IsAdmin && !roles.Contains("Admin"))
+            roles.Add("Admin");
         var userResponse = MapToUserResponse(user, roles);
         var tokens = _tokenService.GenerateTokens(userResponse);
 
@@ -227,6 +229,8 @@ public class AuthService : IAuthService
         storedToken.UpdatedAt = DateTime.UtcNow;
 
         var roles = user.UserRoles.Select(ur => ur.Role.Name).ToList();
+        if (user.IsAdmin && !roles.Contains("Admin"))
+            roles.Add("Admin");
         var userResponse = MapToUserResponse(user, roles);
         var newTokens = _tokenService.GenerateTokens(userResponse);
 
@@ -391,6 +395,8 @@ public class AuthService : IAuthService
         user.UpdatedAt = DateTime.UtcNow;
 
         var roles = user.UserRoles.Select(ur => ur.Role.Name).ToList();
+        if (user.IsAdmin && !roles.Contains("Admin"))
+            roles.Add("Admin");
         var userResponse = MapToUserResponse(user, roles);
         var tokens = _tokenService.GenerateTokens(userResponse);
 

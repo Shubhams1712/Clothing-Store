@@ -28,6 +28,7 @@ public interface IAdminService
     Task<PaginatedResponse<CustomerResponse>> GetCustomersAsync(PaginatedRequest request);
     Task<CustomerDetailResponse?> GetCustomerByIdAsync(Guid id);
     Task<bool> ToggleCustomerActiveAsync(Guid id);
+    Task<bool> SetUserAdminStatusAsync(Guid userId, bool isAdmin);
     Task<PaginatedResponse<CouponResponse>> GetCouponsAsync(PaginatedRequest request);
     Task<CouponResponse?> GetCouponByIdAsync(Guid id);
     Task<CouponResponse> CreateCouponAsync(CreateCouponRequest request);

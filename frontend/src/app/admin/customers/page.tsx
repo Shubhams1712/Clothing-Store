@@ -11,12 +11,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Search, Eye, UserX, UserCheck } from "lucide-react";
+import { Search, Eye, UserX, UserCheck, Shield, ShieldOff } from "lucide-react";
 import { toast } from "sonner";
 import { formatPrice } from "@/lib/utils";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function AdminCustomersPage() {
   const queryClient = useQueryClient();
+  const { user: currentUser } = useAuth();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [detailCustomer, setDetailCustomer] = useState<Customer | null>(null);
@@ -32,6 +34,21 @@ export default function AdminCustomersPage() {
     onError: () => { toast.error("Failed"); },
   });
 
+  const promoteMutation = useMutation({
+    mutationFn: (id: string) => adminApi.customers.promote(id),
+    onSuccess: () => { toast.success("User promoted to admin"); queryClient.invalidateQueries({ queryKey: ["admin-customers"] }); },
+    onError: () => { toast.error("Failed to promote user"); },
+  });
+
+  const demoteMutation = useMutation({
+    mutationFn: (id: string) => adminApi.customers.demote(id),
+    onSuccess: () => { toast.success("Admin privileges removed"); queryClient.invalidateQueries({ queryKey: ["admin-customers"] }); },
+    onError: () => { toast.error("Failed to demote user"); },
+  });
+
+  const isAdmin = (c: Customer) => c.roles?.includes("Admin") ?? false;
+  const isCurrentUser = (c: Customer) => currentUser?.id === c.id;
+
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-bold">Customers</h1>
@@ -46,18 +63,38 @@ export default function AdminCustomersPage() {
           {isLoading ? <div className="space-y-2">{[1, 2, 3].map(i => <Skeleton key={i} className="h-12 w-full" />)}</div> : (
             <>
               <Table>
-                <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Email</TableHead><TableHead>Orders</TableHead><TableHead>Spent</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                <TableHeader><TableRow><TableHead>Name</TableHead><TableHead>Email</TableHead><TableHead>Role</TableHead><TableHead>Orders</TableHead><TableHead>Spent</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
                 <TableBody>
                   {data?.items.map(c => (
                     <TableRow key={c.id}>
                       <TableCell className="font-medium">{c.firstName} {c.lastName}</TableCell>
                       <TableCell>{c.email}</TableCell>
+                      <TableCell>
+                        {isAdmin(c) ? (
+                          <Badge variant="default" className="bg-amber-500 hover:bg-amber-600"><Shield className="h-3 w-3 mr-1" />Admin</Badge>
+                        ) : (
+                          <Badge variant="secondary">Customer</Badge>
+                        )}
+                      </TableCell>
                       <TableCell>{c.orderCount}</TableCell>
                       <TableCell>{formatPrice(c.totalSpent)}</TableCell>
                       <TableCell><Badge variant={c.isActive ? "default" : "destructive"}>{c.isActive ? "Active" : "Disabled"}</Badge></TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDetailCustomer(c)}><Eye className="h-4 w-4" /></Button>
+                          {currentUser?.isAdmin && !isCurrentUser(c) && (
+                            <>
+                              {isAdmin(c) ? (
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-orange-500 hover:text-orange-600" onClick={() => demoteMutation.mutate(c.id)} title="Remove admin">
+                                  <ShieldOff className="h-4 w-4" />
+                                </Button>
+                              ) : (
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-amber-500 hover:text-amber-600" onClick={() => promoteMutation.mutate(c.id)} title="Promote to admin">
+                                  <Shield className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </>
+                          )}
                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => toggleMutation.mutate(c.id)}>
                             {c.isActive ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
                           </Button>
@@ -65,7 +102,7 @@ export default function AdminCustomersPage() {
                       </TableCell>
                     </TableRow>
                   ))}
-                  {data?.items.length === 0 && <TableRow><TableCell colSpan={6} className="text-center text-muted-foreground py-8">No customers found</TableCell></TableRow>}
+                  {data?.items.length === 0 && <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground py-8">No customers found</TableCell></TableRow>}
                 </TableBody>
               </Table>
               {data && data.totalPages > 1 && (
@@ -89,6 +126,13 @@ export default function AdminCustomersPage() {
             <div className="space-y-3">
               <div><p className="text-sm text-muted-foreground">Name</p><p className="font-medium">{detailCustomer.firstName} {detailCustomer.lastName}</p></div>
               <div><p className="text-sm text-muted-foreground">Email</p><p>{detailCustomer.email}</p></div>
+              <div><p className="text-sm text-muted-foreground">Role</p>
+                <div className="flex gap-1">
+                  {detailCustomer.roles?.map(role => (
+                    <Badge key={role} variant={role === "Admin" ? "default" : "secondary"}>{role}</Badge>
+                  ))}
+                </div>
+              </div>
               <div><p className="text-sm text-muted-foreground">Orders</p><p>{detailCustomer.orderCount}</p></div>
               <div><p className="text-sm text-muted-foreground">Total Spent</p><p>{formatPrice(detailCustomer.totalSpent)}</p></div>
               <div><p className="text-sm text-muted-foreground">Joined</p><p>{new Date(detailCustomer.createdAt).toLocaleDateString()}</p></div>

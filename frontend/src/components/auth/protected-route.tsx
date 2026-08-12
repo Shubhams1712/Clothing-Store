@@ -32,7 +32,7 @@ export function ProtectedRoute({ children, requiredRoles }: ProtectedRouteProps)
     if (isAuthenticated && requiredRoles && requiredRoles.length > 0) {
       const hasRequiredRole = requiredRoles.some((role) =>
         user?.roles?.includes(role)
-      );
+      ) || (requiredRoles.includes("Admin") && user?.isAdmin === true);
       if (!hasRequiredRole) {
         router.push("/unauthorized");
       }

@@ -974,7 +974,7 @@ public class AdminService : IAdminService
     {
         var query = _context.Users
             .Include(u => u.UserRoles).ThenInclude(ur => ur.Role)
-            .Where(u => u.IsActive && !u.IsAdmin)
+            .Where(u => u.IsActive)
             .AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(request.Search))
@@ -1043,7 +1043,7 @@ public class AdminService : IAdminService
     {
         var user = await _context.Users
             .Include(u => u.UserRoles).ThenInclude(ur => ur.Role)
-            .FirstOrDefaultAsync(u => u.Id == id && u.IsActive && !u.IsAdmin);
+            .FirstOrDefaultAsync(u => u.Id == id && u.IsActive);
 
         if (user == null) return null;
 
@@ -1087,10 +1087,63 @@ public class AdminService : IAdminService
     public async Task<bool> ToggleCustomerActiveAsync(Guid id)
     {
         var user = await _context.Users.FindAsync(id);
-        if (user == null || user.IsAdmin) return false;
+        if (user == null) return false;
 
         user.IsActive = !user.IsActive;
         user.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+        return true;
+    }
+
+    public async Task<bool> SetUserAdminStatusAsync(Guid userId, bool isAdmin)
+    {
+        var user = await _context.Users
+            .Include(u => u.UserRoles)
+            .ThenInclude(ur => ur.Role)
+            .FirstOrDefaultAsync(u => u.Id == userId);
+        if (user == null) return false;
+
+        user.IsAdmin = isAdmin;
+        user.UpdatedAt = DateTime.UtcNow;
+
+        // Ensure the UserRoles table is consistent with IsAdmin flag
+        var adminRole = await _context.Roles.FirstOrDefaultAsync(r => r.Name == "Admin");
+        if (adminRole == null)
+        {
+            adminRole = new Role
+            {
+                Id = Guid.NewGuid(),
+                Name = "Admin",
+                Description = "Administrator role",
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                IsActive = true
+            };
+            _context.Roles.Add(adminRole);
+            await _context.SaveChangesAsync();
+        }
+
+        var existingAdminRole = user.UserRoles.FirstOrDefault(ur => ur.RoleId == adminRole.Id);
+
+        if (isAdmin && existingAdminRole == null)
+        {
+            // Promote: add Admin role to UserRoles
+            _context.UserRoles.Add(new UserRoleEntity
+            {
+                Id = Guid.NewGuid(),
+                UserId = userId,
+                RoleId = adminRole.Id,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                IsActive = true
+            });
+        }
+        else if (!isAdmin && existingAdminRole != null)
+        {
+            // Demote: remove Admin role from UserRoles
+            _context.UserRoles.Remove(existingAdminRole);
+        }
+
         await _context.SaveChangesAsync();
         return true;
     }

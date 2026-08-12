@@ -143,6 +143,12 @@ export const adminApi = {
     toggleActive: async (id: string) => {
       await api.patch(`${API_CONFIG.ENDPOINTS.ADMIN.CUSTOMERS}/${id}/toggle-active`);
     },
+    promote: async (id: string) => {
+      await api.patch(`${API_CONFIG.ENDPOINTS.ADMIN.CUSTOMERS}/${id}/promote`);
+    },
+    demote: async (id: string) => {
+      await api.patch(`${API_CONFIG.ENDPOINTS.ADMIN.CUSTOMERS}/${id}/demote`);
+    },
   },
 
   coupons: {
