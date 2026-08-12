@@ -162,6 +162,10 @@ public class AuthService : IAuthService
         var roles = user.UserRoles.Select(ur => ur.Role.Name).ToList();
         if (user.IsAdmin && !roles.Contains("Admin"))
             roles.Add("Admin");
+
+        _logger.LogWarning("[AUTH LOGIN] User: {UserId} ({Email}), IsAdmin: {IsAdmin}, UserRoles: {UserRoles}, FinalRoles: {FinalRoles}",
+            user.Id, user.Email, user.IsAdmin, string.Join(",", user.UserRoles.Select(ur => ur.Role.Name)), string.Join(",", roles));
+
         var userResponse = MapToUserResponse(user, roles);
         var tokens = _tokenService.GenerateTokens(userResponse);
 

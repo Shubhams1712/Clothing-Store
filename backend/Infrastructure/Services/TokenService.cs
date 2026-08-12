@@ -107,6 +107,8 @@ public class TokenService : ITokenService
             claims.Add(new Claim(ClaimTypes.Role, role));
         }
 
+        Console.WriteLine($"[TOKEN SERVICE] Generating JWT for user {user.Id} ({user.Email}), IsAdmin={user.IsAdmin}, Roles=[{string.Join(",", user.Roles)}], ClaimTypes.Role values=[{string.Join(",", claims.Where(c => c.Type == ClaimTypes.Role).Select(c => c.Value))}]");
+
         var token = new JwtSecurityToken(
             claims: claims,
             expires: DateTime.UtcNow.AddMinutes(GetAccessTokenExpirationMinutes()),

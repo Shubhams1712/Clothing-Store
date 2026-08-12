@@ -1,9 +1,13 @@
+using System.Security.Claims;
 using Application.Common.Models;
 using Application.DTOs.Auth;
 using Application.DTOs.Admin;
 using Application.Interfaces;
+using Infrastructure.Data;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 
 namespace API.Controllers;
 
@@ -13,10 +17,68 @@ namespace API.Controllers;
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
+    private readonly ApplicationDbContext _context;
+    private readonly ILogger<AuthController> _logger;
 
-    public AuthController(IAuthService authService)
+    public AuthController(IAuthService authService, ApplicationDbContext context, ILogger<AuthController> logger)
     {
         _authService = authService;
+        _context = context;
+        _logger = logger;
+    }
+
+    /// <summary>
+    /// Diagnostic endpoint: shows current user's JWT claims and database state.
+    /// Requires authentication. No secrets are logged.
+    /// </summary>
+    [HttpGet("me")]
+    [Authorize]
+    [EnableRateLimiting("auth")]
+    public async Task<ActionResult<ApiResponse<object>>> Me()
+    {
+        var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var email = User.FindFirst(ClaimTypes.Email)?.Value;
+        var roleClaims = User.FindAll(ClaimTypes.Role).Select(c => c.Value).ToList();
+        var isAdminClaim = User.FindFirst("is_admin")?.Value;
+        var allClaimTypes = User.Claims.Select(c => c.Type.Split('/').Last()).ToList();
+
+        var response = new Dictionary<string, object>
+        {
+            ["jwtClaims"] = new
+            {
+                userId,
+                email,
+                roleClaims,
+                isAdminClaim,
+                allClaimTypes
+            },
+            ["database"] = new Dictionary<string, object>()
+        };
+
+        if (Guid.TryParse(userId, out var parsedUserId))
+        {
+            var dbUser = await _context.Users.FirstOrDefaultAsync(u => u.Id == parsedUserId);
+            var dbRoles = await _context.UserRoles
+                .Where(ur => ur.UserId == parsedUserId && ur.IsActive)
+                .Join(_context.Roles, ur => ur.RoleId, r => r.Id, (ur, r) => r.Name)
+                .ToListAsync();
+
+            if (dbUser != null)
+            {
+                response["database"] = new Dictionary<string, object>
+                {
+                    ["dbIsAdmin"] = dbUser.IsAdmin,
+                    ["dbRoles"] = dbRoles,
+                    ["dbIsActive"] = dbUser.IsActive,
+                    ["dbIsEmailVerified"] = dbUser.IsEmailVerified
+                };
+            }
+        }
+
+        _logger.LogWarning("[AUTH ME] User: {UserId}, JWT Roles: {JwtRoles}, IsAdminClaim: {IsAdminClaim}",
+            userId, string.Join(",", roleClaims), isAdminClaim);
+
+        return Ok(ApiResponse<object>.SuccessResponse(response, "Diagnostic info"));
     }
 
     [HttpPost("register")]
