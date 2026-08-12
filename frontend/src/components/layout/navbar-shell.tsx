@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/hooks/use-auth";
 import { useCart } from "@/hooks/use-cart";
+import { useStoreSettings } from "@/hooks/use-store-settings";
 import { buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -29,6 +30,7 @@ const NAV_LINKS = [
 export function NavbarShell() {
   const { user, isAuthenticated, logout } = useAuth();
   const { totalItems } = useCart();
+  const { storeName } = useStoreSettings();
   const pathname = usePathname();
   const [cartOpen, setCartOpen] = useState(false);
 
@@ -43,7 +45,7 @@ export function NavbarShell() {
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
           <Link href="/" className="flex items-center gap-2">
             <Store className="h-6 w-6" />
-            <span className="text-lg font-semibold tracking-tight">Store</span>
+            <span className="text-lg font-semibold tracking-tight">{storeName}</span>
           </Link>
           <nav className="hidden items-center gap-1 text-sm font-medium md:flex">
             {NAV_LINKS.map(({ href, label }) => {

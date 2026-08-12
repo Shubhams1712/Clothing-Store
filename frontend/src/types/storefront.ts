@@ -82,3 +82,6 @@ export interface ProductFilterParams {
 }
 
 export type PaginatedProducts = PaginatedResponse<StorefrontProduct>;
+
+// Re-export StoreSettings from admin types for convenience
+export type { StoreSettings } from "./admin";

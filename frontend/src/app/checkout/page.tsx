@@ -8,6 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Check, ChevronRight, CreditCard, MapPin, Package, Plus, Truck, ShoppingBag, Wallet } from "lucide-react";
 import { useCart } from "@/hooks/use-cart";
 import { useAuth } from "@/hooks/use-auth";
+import { useStoreSettings } from "@/hooks/use-store-settings";
 import { addressService, checkoutService, type Address, type CheckoutReviewResult } from "@/services/shopping";
 import { paymentService } from "@/services/payment";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -63,6 +64,7 @@ export default function CheckoutPage() {
   const router = useRouter();
   const { items, appliedCoupon, totalPrice, clearCart } = useCart();
   const { user, isAuthenticated } = useAuth();
+  const { storeName } = useStoreSettings();
   const [currentStep, setCurrentStep] = useState(1);
   const [selectedAddressId, setSelectedAddressId] = useState<string>("");
   const [shippingMethod, setShippingMethod] = useState("standard");
@@ -131,7 +133,7 @@ export default function CheckoutPage() {
         key: paymentOrder.keyId,
         amount: paymentOrder.amount * 100,
         currency: paymentOrder.currency,
-        name: "LUXE Store",
+        name: storeName,
         description: `Order #${paymentOrder.orderId.slice(-8).toUpperCase()}`,
         order_id: paymentOrder.orderId,
         handler: async (response: RazorpayResponse) => {

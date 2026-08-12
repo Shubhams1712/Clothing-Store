@@ -24,7 +24,7 @@ public class AdminSettingsController : ControllerBase
     public async Task<ActionResult<ApiResponse<StoreSettingsResponse>>> GetSettings()
     {
         var result = await _adminService.GetSettingsAsync();
-        if (result == null) return Ok(ApiResponse<StoreSettingsResponse>.SuccessResponse(new StoreSettingsResponse { StoreName = "My Store" }));
+        if (result == null) return Ok(ApiResponse<StoreSettingsResponse>.SuccessResponse(new StoreSettingsResponse { Id = Guid.Empty, StoreName = "The Freak Store" }));
         return Ok(ApiResponse<StoreSettingsResponse>.SuccessResponse(result));
     }
 

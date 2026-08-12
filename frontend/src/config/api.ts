@@ -44,6 +44,7 @@ export const API_CONFIG = {
       COLLECTIONS: "/api/collections",
       FEATURED_COLLECTIONS: "/api/collections/featured",
       COLLECTION_BY_SLUG: (slug: string) => `/api/collections/${slug}`,
+      SETTINGS: "/api/storefront/settings",
     },
     ADMIN: {
       DASHBOARD: "/api/admin/dashboard",

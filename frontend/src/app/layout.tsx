@@ -23,7 +23,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Store - Premium Clothing",
+  title: "The Freak Store - Premium Clothing",
   description: "Premium clothing brand eCommerce platform",
 };
 

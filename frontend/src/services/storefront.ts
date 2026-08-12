@@ -6,6 +6,7 @@ import {
   StorefrontCollection,
   ProductFilterParams,
   PaginatedProducts,
+  StoreSettings,
 } from "@/types/storefront";
 
 const ENDPOINTS = API_CONFIG.ENDPOINTS.STOREFRONT;
@@ -89,6 +90,15 @@ export const storefrontService = {
       return response.data.data;
     } catch {
       return null;
+    }
+  },
+
+  async getSettings(): Promise<StoreSettings> {
+    try {
+      const response = await api.get(ENDPOINTS.SETTINGS);
+      return response.data.data;
+    } catch {
+      return { id: "", storeName: "The Freak Store" };
     }
   },
 };
