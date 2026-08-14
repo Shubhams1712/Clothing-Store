@@ -41,22 +41,30 @@ public class MediaController : ControllerBase
         if (!allowedTypes.Contains(request.File.ContentType))
             return BadRequest(ApiResponse<MediaResponse>.ErrorResponse("Invalid file type. Allowed: JPEG, PNG, WebP, GIF"));
 
-        var ext = Path.GetExtension(request.File.FileName);
-        var fileName = $"{Guid.NewGuid()}{ext}";
-
-        await using var stream = request.File.OpenReadStream();
-        var result = await _imageStorageService.UploadAsync(stream, fileName, request.File.ContentType);
-
-        _logger.LogInformation("File uploaded: {FileName} -> {Url}", fileName, result.Url);
-
-        return Ok(ApiResponse<MediaResponse>.SuccessResponse(new MediaResponse
+        try
         {
-            Url = result.Url,
-            FileName = result.PublicId,
-            OriginalName = request.File.FileName,
-            ContentType = request.File.ContentType,
-            Size = request.File.Length
-        }));
+            var ext = Path.GetExtension(request.File.FileName);
+            var fileName = $"{Guid.NewGuid()}{ext}";
+
+            await using var stream = request.File.OpenReadStream();
+            var result = await _imageStorageService.UploadAsync(stream, fileName, request.File.ContentType);
+
+            _logger.LogInformation("File uploaded: {FileName} -> {Url}", fileName, result.Url);
+
+            return Ok(ApiResponse<MediaResponse>.SuccessResponse(new MediaResponse
+            {
+                Url = result.Url,
+                FileName = result.PublicId,
+                OriginalName = request.File.FileName,
+                ContentType = request.File.ContentType,
+                Size = request.File.Length
+            }));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to upload file: {FileName}", request.File.FileName);
+            return StatusCode(500, ApiResponse<MediaResponse>.ErrorResponse($"Upload failed: {ex.Message}"));
+        }
     }
 
     [HttpDelete]

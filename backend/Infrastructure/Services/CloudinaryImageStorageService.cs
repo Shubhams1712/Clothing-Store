@@ -17,7 +17,7 @@ public class CloudinarySettings
 
 public class CloudinaryImageStorageService : IImageStorageService
 {
-    private readonly Cloudinary _cloudinary;
+    private readonly Cloudinary? _cloudinary;
     private readonly CloudinarySettings _settings;
     private readonly ILogger<CloudinaryImageStorageService> _logger;
     private const string Folder = "ecommerce-store";
@@ -26,37 +26,62 @@ public class CloudinaryImageStorageService : IImageStorageService
     {
         _logger = logger;
         _settings = settings.Value;
-        var account = new Account(_settings.CloudName, _settings.ApiKey, _settings.ApiSecret);
-        _cloudinary = new Cloudinary(account);
+
+        if (string.IsNullOrWhiteSpace(_settings.CloudName) || string.IsNullOrWhiteSpace(_settings.ApiKey) || string.IsNullOrWhiteSpace(_settings.ApiSecret))
+        {
+            _logger.LogWarning("Cloudinary settings are not configured. Uploads will fail.");
+        }
+        else
+        {
+            var account = new Account(_settings.CloudName, _settings.ApiKey, _settings.ApiSecret);
+            _cloudinary = new Cloudinary(account);
+        }
     }
 
     public async Task<UploadResult> UploadAsync(Stream fileStream, string fileName, string contentType)
     {
-        var ext = Path.GetExtension(fileName);
-        var publicId = $"{Folder}/{Guid.NewGuid():N}";
-
-        var uploadParams = new ImageUploadParams
+        if (_cloudinary is null || string.IsNullOrWhiteSpace(_settings.CloudName) || string.IsNullOrWhiteSpace(_settings.ApiKey) || string.IsNullOrWhiteSpace(_settings.ApiSecret))
         {
-            File = new FileDescription(fileName, fileStream),
-            PublicId = publicId,
-            Overwrite = false
-        };
-
-        var uploadResult = await _cloudinary.UploadAsync(uploadParams);
-
-        if (uploadResult.StatusCode != System.Net.HttpStatusCode.OK)
-        {
-            _logger.LogWarning("Cloudinary upload failed: {Error}", uploadResult.Error?.Message);
-            throw new InvalidOperationException($"Cloudinary upload failed: {uploadResult.Error?.Message}");
+            _logger.LogError("Cloudinary settings are not configured. Set Cloudinary:CloudName, Cloudinary:ApiKey, and Cloudinary:ApiSecret.");
+            throw new InvalidOperationException("Image storage is not configured. Please contact support.");
         }
 
-        _logger.LogInformation("Image uploaded to Cloudinary: {PublicId}", publicId);
+        var publicId = $"{Folder}/{Guid.NewGuid():N}";
 
-        return new UploadResult
+        try
         {
-            Url = uploadResult.SecureUrl?.ToString() ?? uploadResult.Url?.ToString() ?? string.Empty,
-            PublicId = publicId
-        };
+            var uploadParams = new ImageUploadParams
+            {
+                File = new FileDescription(fileName, fileStream),
+                PublicId = publicId,
+                Overwrite = false
+            };
+
+            var uploadResult = await _cloudinary.UploadAsync(uploadParams);
+
+            if (uploadResult.StatusCode != System.Net.HttpStatusCode.OK)
+            {
+                _logger.LogWarning("Cloudinary upload failed: {Error}", uploadResult.Error?.Message);
+                throw new InvalidOperationException($"Cloudinary upload failed: {uploadResult.Error?.Message}");
+            }
+
+            _logger.LogInformation("Image uploaded to Cloudinary: {PublicId}", publicId);
+
+            return new UploadResult
+            {
+                Url = uploadResult.SecureUrl?.ToString() ?? uploadResult.Url?.ToString() ?? string.Empty,
+                PublicId = publicId
+            };
+        }
+        catch (InvalidOperationException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to upload image to Cloudinary: {FileName}", fileName);
+            throw new InvalidOperationException($"Image upload failed: {ex.Message}");
+        }
     }
 
     public async Task<bool> DeleteAsync(string publicId)
