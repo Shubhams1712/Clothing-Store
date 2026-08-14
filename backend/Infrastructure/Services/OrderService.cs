@@ -371,7 +371,7 @@ public class OrderService : IOrderService
             }
         }
 
-        decimal taxAmount = Math.Round(subTotal * 0.18m, 2);
+        decimal taxAmount = 0;
         decimal shippingAmount = subTotal >= 2000 ? 0 : 150;
         decimal discountAmount = 0;
 

@@ -132,7 +132,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
     handleAddToCart();
     setTimeout(() => {
       router.push("/checkout");
-    }, 100);
+    }, 300);
   };
 
   const handleToggleWishlist = () => {

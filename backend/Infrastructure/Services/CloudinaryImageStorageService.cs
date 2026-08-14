@@ -35,7 +35,7 @@ public class CloudinaryImageStorageService : IImageStorageService
         var ext = Path.GetExtension(fileName);
         var publicId = $"{Folder}/{Guid.NewGuid():N}";
 
-        var uploadParams = new RawUploadParams
+        var uploadParams = new ImageUploadParams
         {
             File = new FileDescription(fileName, fileStream),
             PublicId = publicId,

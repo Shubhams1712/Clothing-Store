@@ -60,7 +60,7 @@ export default function CartPage() {
     toast.success("Coupon removed");
   };
 
-  const taxAmount = Math.round(totalPrice * 0.18 * 100) / 100;
+  const taxAmount = 0;
   const shippingAmount = totalPrice >= 2000 ? 0 : 150;
   const discountAmount = appliedCoupon?.discountAmount ?? 0;
   const grandTotal = Math.max(0, totalPrice + taxAmount + shippingAmount - discountAmount);
@@ -282,7 +282,7 @@ export default function CartPage() {
                   <span>{formatPrice(totalPrice)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-neutral-500">Estimated Tax (18% GST)</span>
+                  <span className="text-neutral-500">Tax (GST)</span>
                   <span>{formatPrice(taxAmount)}</span>
                 </div>
                 <div className="flex justify-between">

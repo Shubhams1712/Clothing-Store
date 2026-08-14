@@ -252,7 +252,7 @@ export default function CheckoutPage() {
 
   const selectedAddress = addresses.find(a => a.id === selectedAddressId);
   const shippingCost = shippingMethod === "express" ? 300 : (totalPrice >= 2000 ? 0 : 150);
-  const taxAmount = reviewResult?.taxAmount ?? Math.round(totalPrice * 0.18 * 100) / 100;
+  const taxAmount = reviewResult?.taxAmount ?? 0;
   const discountAmount = reviewResult?.discountAmount ?? 0;
   const grandTotal = reviewResult?.totalAmount ?? (totalPrice + taxAmount + shippingCost - discountAmount);
 
@@ -546,7 +546,7 @@ export default function CheckoutPage() {
                   <span>{formatPrice(totalPrice)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Tax (18% GST)</span>
+                  <span className="text-muted-foreground">Tax (GST)</span>
                   <span>{formatPrice(taxAmount)}</span>
                 </div>
                 <div className="flex justify-between">
