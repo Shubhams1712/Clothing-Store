@@ -6,7 +6,6 @@ import Link from "next/link";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 
 function LoginForm() {
   const [email, setEmail] = useState("");
@@ -36,20 +35,24 @@ function LoginForm() {
 
   return (
     <div className="flex min-h-[60vh] items-center justify-center py-12">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Welcome back</CardTitle>
-          <CardDescription>Sign in to your account</CardDescription>
-        </CardHeader>
-        <form onSubmit={handleSubmit}>
-          <CardContent className="space-y-4">
-            {error && (
-              <div className="rounded-md bg-destructive/10 p-3 text-sm text-destructive">
-                {error}
-              </div>
-            )}
-            <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium">Email</label>
+      <div className="w-full max-w-md space-y-8">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold uppercase tracking-tight">Welcome Back</h1>
+          <p className="mt-2 text-sm text-neutral-500">Sign in to your account</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {error && (
+            <div className="border border-[#E10600]/20 bg-[#E10600]/5 p-3 text-sm text-[#E10600]">
+              {error}
+            </div>
+          )}
+
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="email" className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                Email
+              </label>
               <Input
                 id="email"
                 type="email"
@@ -57,10 +60,13 @@ function LoginForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                className="border-black/10"
               />
             </div>
-            <div className="space-y-2">
-              <label htmlFor="password" className="text-sm font-medium">Password</label>
+            <div>
+              <label htmlFor="password" className="mb-1.5 block text-xs font-semibold uppercase tracking-wider text-neutral-500">
+                Password
+              </label>
               <Input
                 id="password"
                 type="password"
@@ -68,34 +74,36 @@ function LoginForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                className="border-black/10"
               />
             </div>
-            <div className="flex items-center justify-between text-sm">
-              <Link href="/forgot-password" className="text-muted-foreground hover:text-foreground">
-                Forgot password?
-              </Link>
-            </div>
-          </CardContent>
-          <CardFooter className="flex flex-col gap-4">
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Signing in..." : "Sign in"}
-            </Button>
-            <p className="text-center text-sm text-muted-foreground">
-              Don&apos;t have an account?{" "}
-              <Link href="/register" className="font-medium text-foreground hover:underline">
-                Sign up
-              </Link>
-            </p>
-          </CardFooter>
+          </div>
+
+          <div className="flex items-center justify-between text-sm">
+            <Link href="/forgot-password" className="text-xs font-medium text-neutral-500 hover:text-black">
+              Forgot password?
+            </Link>
+          </div>
+
+          <Button type="submit" className="w-full bg-black text-white hover:bg-neutral-800" disabled={isLoading}>
+            {isLoading ? "Signing in..." : "Sign in"}
+          </Button>
+
+          <p className="text-center text-sm text-neutral-500">
+            Don&apos;t have an account?{" "}
+            <Link href="/register" className="font-semibold text-black hover:underline">
+              Sign up
+            </Link>
+          </p>
         </form>
-      </Card>
+      </div>
     </div>
   );
 }
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-[60vh] items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>}>
+    <Suspense fallback={<div className="flex min-h-[60vh] items-center justify-center"><div className="h-8 w-8 animate-spin rounded-full border-4 border-black border-t-transparent" /></div>}>
       <LoginForm />
     </Suspense>
   );

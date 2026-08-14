@@ -1,6 +1,5 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Card, CardContent } from "@/components/ui/card";
 import { StorefrontCategory } from "@/types/storefront";
 import { getSafeImageUrl } from "@/lib/utils";
 
@@ -13,8 +12,8 @@ export function CategoryCard({ category }: CategoryCardProps) {
 
   return (
     <Link href={`/categories/${category.slug}`}>
-      <Card className="group overflow-hidden border-0 bg-transparent shadow-none transition-all hover:shadow-md">
-        <div className="relative aspect-square overflow-hidden rounded-full bg-muted">
+      <div className="group overflow-hidden">
+        <div className="relative aspect-square overflow-hidden bg-neutral-100">
           <Image
             src={imageUrl}
             alt={category.name}
@@ -26,13 +25,13 @@ export function CategoryCard({ category }: CategoryCardProps) {
           <div className="absolute inset-0 bg-black/0 transition-colors group-hover:bg-black/20" />
         </div>
 
-        <CardContent className="pt-4 text-center">
-          <h3 className="font-medium">{category.name}</h3>
-          <p className="mt-1 text-sm text-muted-foreground">
+        <div className="pt-4 text-center">
+          <h3 className="text-sm font-bold uppercase tracking-wider">{category.name}</h3>
+          <p className="mt-1 text-xs text-neutral-400">
             {category.productCount} {category.productCount === 1 ? "product" : "products"}
           </p>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </Link>
   );
 }

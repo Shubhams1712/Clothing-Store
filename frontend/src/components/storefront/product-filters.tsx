@@ -56,22 +56,21 @@ export function ProductFilters({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold">Filters</h3>
+        <h3 className="text-sm font-bold uppercase tracking-wider">Filters</h3>
         {hasActiveFilters && (
-          <Button
-            variant="ghost"
-            size="sm"
+          <button
+            type="button"
             onClick={() => router.push("/shop")}
-            className="h-auto p-0 text-xs"
+            className="text-[11px] font-semibold uppercase tracking-wider text-neutral-400 hover:text-black"
           >
             Clear all
-          </Button>
+          </button>
         )}
       </div>
 
       <Accordion defaultValue={["category", "size", "color", "price"]}>
         <AccordionItem value="category">
-          <AccordionTrigger className="text-sm">Category</AccordionTrigger>
+          <AccordionTrigger className="text-xs font-semibold uppercase tracking-wider">Category</AccordionTrigger>
           <AccordionContent className="space-y-1">
             <Button
               variant={!selectedCategory ? "secondary" : "ghost"}
@@ -90,14 +89,14 @@ export function ProductFilters({
                 onClick={() => router.push(createFilterURL("category", cat.slug))}
               >
                 <span className="truncate">{cat.name}</span>
-                <span className="text-xs text-muted-foreground">{cat.productCount}</span>
+                <span className="text-xs text-neutral-400">{cat.productCount}</span>
               </Button>
             ))}
           </AccordionContent>
         </AccordionItem>
 
         <AccordionItem value="size">
-          <AccordionTrigger className="text-sm">Size</AccordionTrigger>
+          <AccordionTrigger className="text-xs font-semibold uppercase tracking-wider">Size</AccordionTrigger>
           <AccordionContent>
             <div className="flex flex-wrap gap-2">
               {sizes.map((size) => (
@@ -105,6 +104,7 @@ export function ProductFilters({
                   key={size}
                   variant={selectedSize === size ? "default" : "outline"}
                   size="sm"
+                  className={selectedSize === size ? "bg-black text-white hover:bg-neutral-800" : "border-black/10"}
                   onClick={() =>
                     router.push(createFilterURL("size", selectedSize === size ? null : size))
                   }
@@ -117,7 +117,7 @@ export function ProductFilters({
         </AccordionItem>
 
         <AccordionItem value="color">
-          <AccordionTrigger className="text-sm">Color</AccordionTrigger>
+          <AccordionTrigger className="text-xs font-semibold uppercase tracking-wider">Color</AccordionTrigger>
           <AccordionContent>
             <div className="flex flex-wrap gap-2">
               {colors.map((color) => (
@@ -125,13 +125,13 @@ export function ProductFilters({
                   key={color}
                   variant={selectedColor === color ? "default" : "outline"}
                   size="sm"
-                  className="gap-2"
+                  className={`gap-2 ${selectedColor === color ? "bg-black text-white hover:bg-neutral-800" : "border-black/10"}`}
                   onClick={() =>
                     router.push(createFilterURL("color", selectedColor === color ? null : color))
                   }
                 >
                   <div
-                    className="h-3 w-3 rounded-full border border-border"
+                    className="h-3 w-3 rounded-full border border-neutral-200"
                     style={{ backgroundColor: color.toLowerCase() }}
                   />
                   {color}
@@ -142,14 +142,14 @@ export function ProductFilters({
         </AccordionItem>
 
         <AccordionItem value="price">
-          <AccordionTrigger className="text-sm">Price Range</AccordionTrigger>
+          <AccordionTrigger className="text-xs font-semibold uppercase tracking-wider">Price Range</AccordionTrigger>
           <AccordionContent className="space-y-2">
             <div className="flex gap-2">
               <Input
                 type="number"
                 placeholder="Min"
                 defaultValue={minPrice}
-                className="h-8"
+                className="h-8 border-black/10"
                 onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
                   if (e.key === "Enter") {
                     const value = (e.target as HTMLInputElement).value;
@@ -161,7 +161,7 @@ export function ProductFilters({
                 type="number"
                 placeholder="Max"
                 defaultValue={maxPrice}
-                className="h-8"
+                className="h-8 border-black/10"
                 onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
                   if (e.key === "Enter") {
                     const value = (e.target as HTMLInputElement).value;
@@ -177,42 +177,39 @@ export function ProductFilters({
       {hasActiveFilters && (
         <div className="flex flex-wrap gap-2 pt-2">
           {selectedCategory && (
-            <Badge variant="secondary" className="gap-1">
+            <Badge variant="secondary" className="gap-1 bg-neutral-100">
               {categories.find((c) => c.slug === selectedCategory)?.name}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="ml-1 h-auto p-0"
+              <button
+                type="button"
                 onClick={() => router.push(createFilterURL("category", null))}
+                className="ml-1 text-neutral-400 hover:text-black"
               >
                 ×
-              </Button>
+              </button>
             </Badge>
           )}
           {selectedSize && (
-            <Badge variant="secondary" className="gap-1">
+            <Badge variant="secondary" className="gap-1 bg-neutral-100">
               Size: {selectedSize}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="ml-1 h-auto p-0"
+              <button
+                type="button"
                 onClick={() => router.push(createFilterURL("size", null))}
+                className="ml-1 text-neutral-400 hover:text-black"
               >
                 ×
-              </Button>
+              </button>
             </Badge>
           )}
           {selectedColor && (
-            <Badge variant="secondary" className="gap-1">
+            <Badge variant="secondary" className="gap-1 bg-neutral-100">
               Color: {selectedColor}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="ml-1 h-auto p-0"
+              <button
+                type="button"
                 onClick={() => router.push(createFilterURL("color", null))}
+                className="ml-1 text-neutral-400 hover:text-black"
               >
                 ×
-              </Button>
+              </button>
             </Badge>
           )}
         </div>

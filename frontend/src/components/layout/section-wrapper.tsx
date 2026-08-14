@@ -13,10 +13,10 @@ export function SectionWrapper({ children, className, title, description }: Sect
       {(title || description) && (
         <div className="mb-8">
           {title && (
-            <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">{title}</h2>
+            <h2 className="text-2xl font-bold uppercase tracking-tight sm:text-3xl">{title}</h2>
           )}
           {description && (
-            <p className="mt-2 text-muted-foreground">{description}</p>
+            <p className="mt-2 text-sm text-neutral-500">{description}</p>
           )}
         </div>
       )}

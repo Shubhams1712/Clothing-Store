@@ -267,12 +267,12 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
       {/* Breadcrumb */}
-      <nav className="mb-6 flex items-center gap-2 text-sm text-muted-foreground" aria-label="Breadcrumb">
-        <Link href="/" className="hover:text-foreground transition-colors">
+      <nav className="mb-6 flex items-center gap-2 text-xs text-neutral-400" aria-label="Breadcrumb">
+        <Link href="/" className="hover:text-black transition-colors">
           Home
         </Link>
         <ChevronRight className="h-3 w-3" aria-hidden="true" />
-        <Link href="/shop" className="hover:text-foreground transition-colors">
+        <Link href="/shop" className="hover:text-black transition-colors">
           Shop
         </Link>
         {product.categoryName && (
@@ -280,14 +280,14 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
             <ChevronRight className="h-3 w-3" aria-hidden="true" />
             <Link
               href={`/categories/${product.categorySlug}`}
-              className="hover:text-foreground transition-colors"
+              className="hover:text-black transition-colors"
             >
               {product.categoryName}
             </Link>
           </>
         )}
         <ChevronRight className="h-3 w-3" aria-hidden="true" />
-        <span className="text-foreground font-medium" aria-current="page">{product.name}</span>
+        <span className="text-black font-medium" aria-current="page">{product.name}</span>
       </nav>
 
       <div className="grid gap-8 lg:grid-cols-2">
@@ -313,11 +313,11 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
           {/* Title & Brand */}
           <div>
             {product.brand && (
-              <p className="text-sm font-medium text-muted-foreground uppercase tracking-wide">{product.brand}</p>
+              <p className="text-[11px] font-semibold text-neutral-400 uppercase tracking-widest">{product.brand}</p>
             )}
-            <h1 className="text-3xl font-bold mt-1">{product.name}</h1>
+            <h1 className="mt-1 text-3xl font-bold uppercase tracking-tight">{product.name}</h1>
             {product.sku && (
-              <p className="mt-1 text-sm text-muted-foreground">SKU: {product.sku}</p>
+              <p className="mt-1 text-xs text-neutral-400">SKU: {product.sku}</p>
             )}
 
             {/* Rating */}
@@ -329,13 +329,13 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
                       key={i}
                       className={`h-4 w-4 ${
                         i < Math.round(product.averageRating)
-                          ? "fill-primary text-primary"
-                          : "text-muted-foreground"
+                          ? "fill-[#E10600] text-[#E10600]"
+                          : "text-neutral-300"
                       }`}
                     />
                   ))}
                 </div>
-                <span className="text-sm text-muted-foreground">
+                <span className="text-sm text-neutral-500">
                   {product.averageRating.toFixed(1)} ({product.reviewCount} reviews)
                 </span>
               </div>
@@ -346,12 +346,12 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
           <div className="flex items-baseline gap-3">
             <span className="text-3xl font-bold">{formatPrice(currentPrice)}</span>
             {hasDiscount && currentPrice === product.price && (
-              <span className="text-lg text-muted-foreground line-through">
+              <span className="text-lg text-neutral-400 line-through">
                 {formatPrice(product.comparePrice!)}
               </span>
             )}
             {hasDiscount && (
-              <Badge className="bg-destructive text-destructive-foreground">
+              <Badge className="bg-[#E10600] text-white border-0 text-[10px] font-bold uppercase tracking-wider">
                 -{discountPercent}%
               </Badge>
             )}
@@ -359,15 +359,15 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
 
           {/* Short Description */}
           {product.shortDescription && (
-            <p className="text-muted-foreground">{product.shortDescription}</p>
+            <p className="text-sm text-neutral-500">{product.shortDescription}</p>
           )}
 
-          <Separator />
+          <Separator className="bg-black/10" />
 
           {/* Colors */}
           {product.colors.length > 0 && (
             <div>
-              <label className="mb-2 block text-sm font-medium">
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-neutral-500">
                 Color {selectedColor && `- ${selectedColor}`}
               </label>
               <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Select color">
@@ -381,14 +381,14 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
                       setSelectedColor(color);
                       setQuantity(1);
                     }}
-                    className={`flex items-center gap-2 rounded-md border-2 px-3 py-2 text-sm transition-all ${
+                    className={`flex items-center gap-2 border px-3 py-2 text-sm transition-all ${
                       selectedColor === color
-                        ? "border-primary bg-primary/5"
-                        : "border-muted hover:border-muted-foreground/50"
+                        ? "border-black bg-black text-white"
+                        : "border-black/10 hover:border-black/30"
                     }`}
                   >
                     <div
-                      className="h-4 w-4 rounded-full border border-border"
+                      className="h-4 w-4 rounded-full border border-white/20"
                       style={{ backgroundColor: color.toLowerCase() }}
                     />
                     {color}
@@ -401,7 +401,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
           {/* Sizes */}
           {product.sizes.length > 0 && (
             <div>
-              <label className="mb-2 block text-sm font-medium">
+              <label className="mb-2 block text-xs font-semibold uppercase tracking-wider text-neutral-500">
                 Size {selectedSize && `- ${selectedSize}`}
               </label>
               <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="Select size">
@@ -415,10 +415,10 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
                       setSelectedSize(size);
                       setQuantity(1);
                     }}
-                    className={`rounded-md border-2 px-4 py-2 text-sm font-medium transition-all ${
+                    className={`border px-4 py-2 text-sm font-medium transition-all ${
                       selectedSize === size
-                        ? "border-primary bg-primary/5"
-                        : "border-muted hover:border-muted-foreground/50"
+                        ? "border-black bg-black text-white"
+                        : "border-black/10 hover:border-black/30"
                     }`}
                   >
                     {size}
@@ -430,11 +430,11 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
 
           {/* Quantity Selector */}
           <div>
-            <label htmlFor="quantity-input" className="mb-2 block text-sm font-medium">
+            <label htmlFor="quantity-input" className="mb-2 block text-xs font-semibold uppercase tracking-wider text-neutral-500">
               Quantity {selectedVariant && `(Max: ${maxStock})`}
             </label>
             <div className="flex items-center gap-3">
-              <div className="flex items-center border rounded-md">
+              <div className="flex items-center border border-black/10">
                 <Button
                   variant="ghost"
                   size="icon"
@@ -467,24 +467,24 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
                 </Button>
               </div>
               {product.isInStock ? (
-                <Badge variant="outline" className="text-xs">
+                <Badge variant="outline" className="border-black/10 text-xs uppercase tracking-wider">
                   In Stock
                 </Badge>
               ) : (
-                <Badge variant="destructive" className="text-xs">
+                <Badge variant="destructive" className="border-0 bg-[#E10600] text-white text-[10px] font-bold uppercase tracking-wider">
                   Out of Stock
                 </Badge>
               )}
             </div>
           </div>
 
-          <Separator />
+          <Separator className="bg-black/10" />
 
           {/* Purchase Actions */}
           <div className="flex gap-3">
             <Button
               size="lg"
-              className="flex-1 gap-2"
+              className="flex-1 gap-2 bg-black text-white hover:bg-neutral-800"
               disabled={!product.isInStock}
               onClick={handleAddToCart}
               aria-label="Add to cart"
@@ -494,7 +494,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
             </Button>
             <Button
               size="lg"
-              className="gap-2"
+              className="gap-2 bg-[#E10600] text-white hover:bg-[#c40500]"
               disabled={!product.isInStock}
               onClick={handleBuyNow}
               aria-label="Buy now"
@@ -508,17 +508,17 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
             <Button
               variant="outline"
               size="lg"
-              className="flex-1 gap-2"
+              className="flex-1 gap-2 border-black/10"
               onClick={handleToggleWishlist}
               aria-label={inWishlist ? "Remove from wishlist" : "Add to wishlist"}
             >
-              <Heart className={`h-5 w-5 ${inWishlist ? "fill-destructive text-destructive" : ""}`} />
+              <Heart className={`h-5 w-5 ${inWishlist ? "fill-[#E10600] text-[#E10600]" : ""}`} />
               {inWishlist ? "In Wishlist" : "Add to Wishlist"}
             </Button>
             <Button
               variant="outline"
               size="lg"
-              className="gap-2"
+              className="gap-2 border-black/10"
               onClick={handleShare}
               aria-label="Share product"
             >
@@ -528,45 +528,45 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
           </div>
 
           {/* Delivery & Returns */}
-          <Card>
-            <CardContent className="space-y-3 p-4">
+          <div className="border border-black/10 p-4">
+            <div className="space-y-3">
               <div className="flex items-center gap-3 text-sm">
-                <Truck className="h-4 w-4 text-muted-foreground shrink-0" />
+                <Truck className="h-4 w-4 text-neutral-400 shrink-0" />
                 <div>
-                  <p className="font-medium">Free Shipping</p>
-                  <p className="text-muted-foreground text-xs">On orders over ₹2,000</p>
+                  <p className="font-semibold">Free Shipping</p>
+                  <p className="text-xs text-neutral-500">On orders over ₹2,000</p>
                 </div>
               </div>
               <div className="flex items-center gap-3 text-sm">
-                <Clock className="h-4 w-4 text-muted-foreground shrink-0" />
+                <Clock className="h-4 w-4 text-neutral-400 shrink-0" />
                 <div>
-                  <p className="font-medium">Estimated Delivery</p>
-                  <p className="text-muted-foreground text-xs">3-7 business days</p>
+                  <p className="font-semibold">Estimated Delivery</p>
+                  <p className="text-xs text-neutral-500">3-7 business days</p>
                 </div>
               </div>
               <div className="flex items-center gap-3 text-sm">
-                <RotateCcw className="h-4 w-4 text-muted-foreground shrink-0" />
+                <RotateCcw className="h-4 w-4 text-neutral-400 shrink-0" />
                 <div>
-                  <p className="font-medium">Easy Returns & Exchanges</p>
-                  <p className="text-muted-foreground text-xs">30-day return policy</p>
+                  <p className="font-semibold">Easy Returns & Exchanges</p>
+                  <p className="text-xs text-neutral-500">30-day return policy</p>
                 </div>
               </div>
               <div className="flex items-center gap-3 text-sm">
-                <RefreshCw className="h-4 w-4 text-muted-foreground shrink-0" />
+                <RefreshCw className="h-4 w-4 text-neutral-400 shrink-0" />
                 <div>
-                  <p className="font-medium">Exchange Available</p>
-                  <p className="text-muted-foreground text-xs">Swap for a different size or color</p>
+                  <p className="font-semibold">Exchange Available</p>
+                  <p className="text-xs text-neutral-500">Swap for a different size or color</p>
                 </div>
               </div>
               <div className="flex items-center gap-3 text-sm">
-                <Shield className="h-4 w-4 text-muted-foreground shrink-0" />
+                <Shield className="h-4 w-4 text-neutral-400 shrink-0" />
                 <div>
-                  <p className="font-medium">Secure Checkout</p>
-                  <p className="text-muted-foreground text-xs">SSL encrypted payment</p>
+                  <p className="font-semibold">Secure Checkout</p>
+                  <p className="text-xs text-neutral-500">SSL encrypted payment</p>
                 </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
+          </div>
         </div>
       </div>
 

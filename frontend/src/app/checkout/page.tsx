@@ -267,12 +267,12 @@ export default function CheckoutPage() {
               <button
                 onClick={() => step.id < currentStep && setCurrentStep(step.id)}
                 disabled={step.id > currentStep}
-                className={`flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
+                className={`flex items-center gap-2 px-3 py-1.5 text-xs font-bold uppercase tracking-wider transition-colors ${
                   step.id === currentStep
-                    ? "bg-primary text-primary-foreground"
+                    ? "bg-black text-white"
                     : step.id < currentStep
-                    ? "bg-primary/10 text-primary"
-                    : "bg-muted text-muted-foreground"
+                    ? "bg-neutral-200 text-black"
+                    : "bg-neutral-100 text-neutral-400"
                 }`}
               >
                 {step.id < currentStep ? (
@@ -283,7 +283,7 @@ export default function CheckoutPage() {
                 <span className="hidden sm:inline">{step.label}</span>
               </button>
               {index < STEPS.length - 1 && (
-                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                <ChevronRight className="h-4 w-4 text-neutral-300" />
               )}
             </li>
           ))}
@@ -294,8 +294,8 @@ export default function CheckoutPage() {
         <div>
           {currentStep === 1 && (
             <div className="space-y-6">
-              <h2 className="text-xl font-bold">Customer Information</h2>
-              <Card>
+              <h2 className="text-xl font-bold uppercase tracking-tight">Customer Information</h2>
+              <Card className="border-black/10">
                 <CardContent className="p-6">
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div>
