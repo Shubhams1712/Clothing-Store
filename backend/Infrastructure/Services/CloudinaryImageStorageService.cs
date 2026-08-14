@@ -1,6 +1,8 @@
 using Application.Interfaces;
 using CloudinaryDotNet;
 using CloudinaryDotNet.Actions;
+using Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Net.Http.Json;
@@ -17,35 +19,87 @@ public class CloudinarySettings
 
 public class CloudinaryImageStorageService : IImageStorageService
 {
-    private readonly Cloudinary? _cloudinary;
-    private readonly CloudinarySettings _settings;
+    private readonly CloudinarySettings _configSettings;
+    private readonly ApplicationDbContext _context;
     private readonly ILogger<CloudinaryImageStorageService> _logger;
+    private readonly SemaphoreSlim _initLock = new(1, 1);
+    private Cloudinary? _cloudinary;
+    private bool _initialized;
     private const string Folder = "ecommerce-store";
 
-    public CloudinaryImageStorageService(IOptions<CloudinarySettings> settings, ILogger<CloudinaryImageStorageService> logger)
+    public CloudinaryImageStorageService(
+        IOptions<CloudinarySettings> configSettings,
+        ApplicationDbContext context,
+        ILogger<CloudinaryImageStorageService> logger)
     {
+        _configSettings = configSettings.Value;
+        _context = context;
         _logger = logger;
-        _settings = settings.Value;
+    }
 
-        if (string.IsNullOrWhiteSpace(_settings.CloudName) || string.IsNullOrWhiteSpace(_settings.ApiKey) || string.IsNullOrWhiteSpace(_settings.ApiSecret))
+    private async Task<Cloudinary> GetCloudinaryAsync()
+    {
+        if (_cloudinary is not null && _initialized)
+            return _cloudinary;
+
+        await _initLock.WaitAsync();
+        try
         {
-            _logger.LogWarning("Cloudinary settings are not configured. Uploads will fail.");
-        }
-        else
-        {
-            var account = new Account(_settings.CloudName, _settings.ApiKey, _settings.ApiSecret);
+            if (_cloudinary is not null && _initialized)
+                return _cloudinary;
+
+            var (cloudName, apiKey, apiSecret) = await GetCredentialsAsync();
+
+            if (string.IsNullOrWhiteSpace(cloudName) || string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(apiSecret))
+            {
+                throw new InvalidOperationException(
+                    "Cloudinary is not configured. Go to Admin → Settings and set your Cloudinary credentials.");
+            }
+
+            var account = new Account(cloudName, apiKey, apiSecret);
             _cloudinary = new Cloudinary(account);
+            _initialized = true;
+            return _cloudinary;
         }
+        finally
+        {
+            _initLock.Release();
+        }
+    }
+
+    private async Task<(string? CloudName, string? ApiKey, string? ApiSecret)> GetCredentialsAsync()
+    {
+        try
+        {
+            var dbSettings = await _context.StoreSettings.FirstOrDefaultAsync();
+            if (dbSettings is not null &&
+                !string.IsNullOrWhiteSpace(dbSettings.CloudinaryCloudName) &&
+                !string.IsNullOrWhiteSpace(dbSettings.CloudinaryApiKey) &&
+                !string.IsNullOrWhiteSpace(dbSettings.CloudinaryApiSecret))
+            {
+                _logger.LogInformation("Using Cloudinary credentials from database.");
+                return (dbSettings.CloudinaryCloudName, dbSettings.CloudinaryApiKey, dbSettings.CloudinaryApiSecret);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to read Cloudinary credentials from database. Falling back to config.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(_configSettings.CloudName) &&
+            !string.IsNullOrWhiteSpace(_configSettings.ApiKey) &&
+            !string.IsNullOrWhiteSpace(_configSettings.ApiSecret))
+        {
+            _logger.LogInformation("Using Cloudinary credentials from configuration.");
+            return (_configSettings.CloudName, _configSettings.ApiKey, _configSettings.ApiSecret);
+        }
+
+        return (null, null, null);
     }
 
     public async Task<UploadResult> UploadAsync(Stream fileStream, string fileName, string contentType)
     {
-        if (_cloudinary is null || string.IsNullOrWhiteSpace(_settings.CloudName) || string.IsNullOrWhiteSpace(_settings.ApiKey) || string.IsNullOrWhiteSpace(_settings.ApiSecret))
-        {
-            _logger.LogError("Cloudinary settings are not configured. Set Cloudinary:CloudName, Cloudinary:ApiKey, and Cloudinary:ApiSecret.");
-            throw new InvalidOperationException("Image storage is not configured. Please contact support.");
-        }
-
+        var cloudinary = await GetCloudinaryAsync();
         var publicId = $"{Folder}/{Guid.NewGuid():N}";
 
         try
@@ -57,7 +111,7 @@ public class CloudinaryImageStorageService : IImageStorageService
                 Overwrite = false
             };
 
-            var uploadResult = await _cloudinary.UploadAsync(uploadParams);
+            var uploadResult = await cloudinary.UploadAsync(uploadParams);
 
             if (uploadResult.StatusCode != System.Net.HttpStatusCode.OK)
             {
@@ -91,12 +145,14 @@ public class CloudinaryImageStorageService : IImageStorageService
 
         try
         {
+            var cloudinary = await GetCloudinaryAsync();
+
             var deleteParams = new DeletionParams(publicId)
             {
                 ResourceType = ResourceType.Auto
             };
 
-            var result = await _cloudinary.DestroyAsync(deleteParams);
+            var result = await cloudinary.DestroyAsync(deleteParams);
 
             if (result.StatusCode == System.Net.HttpStatusCode.OK)
             {
@@ -118,9 +174,14 @@ public class CloudinaryImageStorageService : IImageStorageService
     {
         try
         {
-            var url = $"https://api.cloudinary.com/v1_1/{_settings.CloudName}/resources/search";
+            var (cloudName, apiKey, apiSecret) = await GetCredentialsAsync();
+
+            if (string.IsNullOrWhiteSpace(cloudName) || string.IsNullOrWhiteSpace(apiKey) || string.IsNullOrWhiteSpace(apiSecret))
+                return new List<MediaFileResult>();
+
+            var url = $"https://api.cloudinary.com/v1_1/{cloudName}/resources/search";
             using var httpClient = new HttpClient();
-            httpClient.DefaultRequestHeaders.Add("Authorization", $"Basic {Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"{_settings.ApiKey}:{_settings.ApiSecret}"))}");
+            httpClient.DefaultRequestHeaders.Add("Authorization", $"Basic {Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"{apiKey}:{apiSecret}"))}");
 
             var response = await httpClient.PostAsJsonAsync(url, new
             {
