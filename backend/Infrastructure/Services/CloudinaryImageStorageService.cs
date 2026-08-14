@@ -3,6 +3,7 @@ using CloudinaryDotNet;
 using CloudinaryDotNet.Actions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using System.Net.Http.Json;
 using UploadResult = Application.Interfaces.ImageUploadResult;
 
 namespace Infrastructure.Services;
@@ -17,13 +18,15 @@ public class CloudinarySettings
 public class CloudinaryImageStorageService : IImageStorageService
 {
     private readonly Cloudinary _cloudinary;
+    private readonly CloudinarySettings _settings;
     private readonly ILogger<CloudinaryImageStorageService> _logger;
     private const string Folder = "ecommerce-store";
 
     public CloudinaryImageStorageService(IOptions<CloudinarySettings> settings, ILogger<CloudinaryImageStorageService> logger)
     {
         _logger = logger;
-        var account = new Account(settings.Value.CloudName, settings.Value.ApiKey, settings.Value.ApiSecret);
+        _settings = settings.Value;
+        var account = new Account(_settings.CloudName, _settings.ApiKey, _settings.ApiSecret);
         _cloudinary = new Cloudinary(account);
     }
 
@@ -85,4 +88,52 @@ public class CloudinaryImageStorageService : IImageStorageService
             return false;
         }
     }
+
+    public async Task<List<MediaFileResult>> ListFilesAsync()
+    {
+        try
+        {
+            var url = $"https://api.cloudinary.com/v1_1/{_settings.CloudName}/resources/search";
+            using var httpClient = new HttpClient();
+            httpClient.DefaultRequestHeaders.Add("Authorization", $"Basic {Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes($"{_settings.ApiKey}:{_settings.ApiSecret}"))}");
+
+            var response = await httpClient.PostAsJsonAsync(url, new
+            {
+                expression = $"folder:{Folder}",
+                max_results = 500
+            });
+
+            response.EnsureSuccessStatusCode();
+
+            var json = await response.Content.ReadAsStringAsync();
+            var result = System.Text.Json.JsonSerializer.Deserialize<CloudinarySearchResult>(json);
+
+            return result?.Resources?.Select(r => new MediaFileResult
+            {
+                Url = r.SecureUrl ?? r.Url ?? string.Empty,
+                Name = Path.GetFileName(r.PublicId),
+                Size = r.Bytes,
+                LastModified = r.CreatedAt != default ? new DateTimeOffset(r.CreatedAt).ToUnixTimeSeconds() : 0
+            }).ToList() ?? new List<MediaFileResult>();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to list files from Cloudinary");
+            return new List<MediaFileResult>();
+        }
+    }
+}
+
+internal class CloudinarySearchResult
+{
+    public List<CloudinaryResource> Resources { get; set; } = new();
+}
+
+internal class CloudinaryResource
+{
+    public string PublicId { get; set; } = string.Empty;
+    public string Url { get; set; } = string.Empty;
+    public string SecureUrl { get; set; } = string.Empty;
+    public long Bytes { get; set; }
+    public DateTime CreatedAt { get; set; }
 }

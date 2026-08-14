@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Search, Trash2, Eye, EyeOff, Edit } from "lucide-react";
+import { Plus, Search, Trash2, Eye, EyeOff, Edit, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 import { formatPrice } from "@/lib/utils";
@@ -22,7 +22,7 @@ export default function AdminProductsPage() {
   const [page, setPage] = useState(1);
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["admin-products", page, search],
     queryFn: () => adminApi.products.list({ page, pageSize: 10, search }),
   });
@@ -70,6 +70,14 @@ export default function AdminProductsPage() {
               {[1, 2, 3, 4, 5].map((i) => (
                 <Skeleton key={i} className="h-12 w-full" />
               ))}
+            </div>
+          ) : error ? (
+            <div className="flex flex-col items-center justify-center p-12 text-center">
+              <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
+              <h2 className="text-lg font-semibold">Failed to load products</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                {error instanceof Error ? error.message : "An unexpected error occurred"}
+              </p>
             </div>
           ) : (
             <>

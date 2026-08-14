@@ -33,11 +33,25 @@ public static class ServiceCollectionExtensions
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen();
 
+        var envName = configuration["Environment"]
+                   ?? configuration["ASPNETCORE_ENVIRONMENT"]
+                   ?? "Production";
+        var isProduction = !string.Equals(envName, "Development", StringComparison.OrdinalIgnoreCase)
+                        && !string.Equals(envName, "Local", StringComparison.OrdinalIgnoreCase);
+
         services.AddCors(options =>
         {
             options.AddPolicy("AllowFrontend", builder =>
             {
-                var frontendUrl = configuration["Frontend:Url"] ?? "http://localhost:3000";
+                var frontendUrl = configuration["Frontend:Url"];
+                if (string.IsNullOrEmpty(frontendUrl))
+                {
+                    if (isProduction)
+                        throw new InvalidOperationException(
+                            "Frontend URL is not configured. Set the Frontend:Url configuration value or the Frontend__Url environment variable. " +
+                            "Application cannot start without a configured frontend URL in production.");
+                    frontendUrl = "http://localhost:3000";
+                }
                 builder.WithOrigins(frontendUrl)
                     .AllowAnyMethod()
                     .AllowAnyHeader()
@@ -49,11 +63,6 @@ public static class ServiceCollectionExtensions
             .AddCheck("self", () => Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckResult.Healthy());
 
         var jwtSecret = configuration["Jwt:Secret"];
-        var envName = configuration["Environment"]
-                   ?? configuration["ASPNETCORE_ENVIRONMENT"]
-                   ?? "Production";
-        var isProduction = !string.Equals(envName, "Development", StringComparison.OrdinalIgnoreCase)
-                        && !string.Equals(envName, "Local", StringComparison.OrdinalIgnoreCase);
 
         if (string.IsNullOrEmpty(jwtSecret))
         {

@@ -9,7 +9,7 @@ function getBaseUrl(): string {
     );
   }
 
-  return "http://localhost:5000";
+  return "http://localhost:5124";
 }
 
 export const API_CONFIG = {

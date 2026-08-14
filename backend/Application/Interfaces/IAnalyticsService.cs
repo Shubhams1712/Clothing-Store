@@ -1,9 +1,14 @@
+using Application.DTOs.Admin;
+
 namespace Application.Interfaces;
 
 public interface IAnalyticsService
 {
-    Task<object?> GetDashboardSummaryAsync(DateTime? startDate, DateTime? endDate);
-    Task<object?> GetSalesAnalyticsAsync(DateTime? startDate, DateTime? endDate);
-    Task<object?> GetProductAnalyticsAsync(DateTime? startDate, DateTime? endDate);
-    Task<object?> GetCustomerAnalyticsAsync(DateTime? startDate, DateTime? endDate);
+    Task<DashboardAnalyticsResponse> GetDashboardAnalyticsAsync(AnalyticsDateRange? dateRange);
+    Task<SalesAnalyticsResponse> GetSalesAnalyticsAsync(AnalyticsDateRange? dateRange);
+    Task<ProductAnalyticsResponse> GetProductAnalyticsAsync(AnalyticsDateRange? dateRange);
+    Task<CustomerAnalyticsResponse> GetCustomerAnalyticsAsync(AnalyticsDateRange? dateRange);
+    Task<InventoryAnalyticsResponse> GetInventoryAnalyticsAsync(AnalyticsDateRange? dateRange);
+    Task<OrderAnalyticsResponse> GetOrderAnalyticsAsync(AnalyticsDateRange? dateRange);
+    Task<byte[]> ExportReportAsync(ReportExportRequest request);
 }

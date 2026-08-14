@@ -86,6 +86,7 @@ public class WebhooksController : ControllerBase
         catch (Exception ex)
         {
             Log.Error(ex, "Error processing webhook event {EventType}", eventType);
+            return StatusCode(500, new { error = "Webhook processing failed" });
         }
 
         return Ok(new { status = "ok" });

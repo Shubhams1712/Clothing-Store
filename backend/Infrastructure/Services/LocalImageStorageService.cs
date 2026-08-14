@@ -62,4 +62,29 @@ public class LocalImageStorageService : IImageStorageService
         _logger.LogInformation("Image deleted locally: {PublicId}", publicId);
         return Task.FromResult(true);
     }
+
+    public Task<List<MediaFileResult>> ListFilesAsync()
+    {
+        var uploadsDir = Path.Combine(_environment.WebRootPath, UploadsFolder);
+        if (!Directory.Exists(uploadsDir))
+            return Task.FromResult(new List<MediaFileResult>());
+
+        var files = Directory.GetFiles(uploadsDir)
+            .Select(f =>
+            {
+                var fileInfo = new FileInfo(f);
+                var storedName = Path.GetFileName(f);
+                return new MediaFileResult
+                {
+                    Url = $"/{UploadsFolder}/{storedName}",
+                    Name = storedName,
+                    Size = fileInfo.Length,
+                    LastModified = new DateTimeOffset(fileInfo.LastWriteTimeUtc).ToUnixTimeSeconds()
+                };
+            })
+            .OrderByDescending(f => f.LastModified)
+            .ToList();
+
+        return Task.FromResult(files);
+    }
 }

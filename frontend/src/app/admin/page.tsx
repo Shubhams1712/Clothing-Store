@@ -9,7 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { IndianRupee, ShoppingCart, Package, Users, AlertTriangle } from "lucide-react";
 
 export default function AdminDashboardPage() {
-  const { data: stats, isLoading } = useQuery({
+  const { data: stats, isLoading, error } = useQuery({
     queryKey: ["admin-dashboard"],
     queryFn: () => adminApi.dashboard.getStats(),
   });
@@ -28,6 +28,23 @@ export default function AdminDashboardPage() {
             </Card>
           ))}
         </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center p-12 text-center">
+            <AlertTriangle className="h-12 w-12 text-destructive mb-4" />
+            <h2 className="text-lg font-semibold">Failed to load dashboard</h2>
+            <p className="text-sm text-muted-foreground mt-1">
+              {error instanceof Error ? error.message : "An unexpected error occurred"}
+            </p>
+          </CardContent>
+        </Card>
       </div>
     );
   }

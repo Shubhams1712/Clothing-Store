@@ -78,6 +78,28 @@ public class PaymentService : IPaymentService
         return keyId ?? string.Empty;
     }
 
+    public async Task<long?> GetRazorpayOrderAmountAsync(string razorpayOrderId)
+    {
+        try
+        {
+            var (keyId, keySecret) = await GetRazorpayCredentialsAsync();
+            if (string.IsNullOrEmpty(keyId) || string.IsNullOrEmpty(keySecret))
+                return null;
+
+            var client = new RazorpayClient(keyId, keySecret);
+            var order = client.Order.Fetch(razorpayOrderId);
+            if (order != null && order.Attributes.ContainsKey("amount"))
+            {
+                return Convert.ToInt64(order["amount"]);
+            }
+            return null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     public bool VerifyWebhookSignature(string payload, string signature)
     {
         var webhookSecret = GetRazorpayWebhookSecretAsync().GetAwaiter().GetResult();

@@ -23,6 +23,13 @@ public class MediaController : ControllerBase
         _environment = environment;
     }
 
+    [HttpGet]
+    public async Task<ActionResult<ApiResponse<List<MediaFileResult>>>> GetMediaFiles()
+    {
+        var files = await _imageStorageService.ListFilesAsync();
+        return Ok(ApiResponse<List<MediaFileResult>>.SuccessResponse(files));
+    }
+
     [HttpPost("upload")]
     [RequestSizeLimit(10 * 1024 * 1024)]
     public async Task<ActionResult<ApiResponse<MediaResponse>>> Upload([FromForm] UploadRequest request)

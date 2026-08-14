@@ -113,6 +113,7 @@ export interface CreateCodOrderRequest {
   }>;
   couponCode?: string;
   shippingAddressId?: string;
+  shippingMethod?: string;
   notes?: string;
 }
 

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { use } from "react";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   Heart,
   Share2,
@@ -38,6 +39,7 @@ import { toast } from "sonner";
 
 export default function ProductDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
+  const router = useRouter();
   const { addItem } = useCart();
   const { toggleItem, isInWishlist } = useWishlist();
   const { addItem: addRecentlyViewed } = useRecentlyViewed();
@@ -128,7 +130,9 @@ export default function ProductDetailPage({ params }: { params: Promise<{ slug: 
 
   const handleBuyNow = () => {
     handleAddToCart();
-    window.location.href = "/checkout";
+    setTimeout(() => {
+      router.push("/checkout");
+    }, 100);
   };
 
   const handleToggleWishlist = () => {

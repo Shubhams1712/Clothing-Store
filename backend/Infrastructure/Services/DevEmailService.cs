@@ -1,22 +1,26 @@
 using Application.Interfaces;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace Infrastructure.Services;
 
 public class DevEmailService : IEmailService
 {
     private readonly ILogger<DevEmailService> _logger;
+    private readonly EmailSettings _settings;
 
-    public DevEmailService(ILogger<DevEmailService> logger)
+    public DevEmailService(ILogger<DevEmailService> logger, IOptions<EmailSettings> settings)
     {
         _logger = logger;
+        _settings = settings.Value;
     }
 
     public Task<bool> SendVerificationEmailAsync(string toEmail, string token, string email)
     {
         var encodedToken = Uri.EscapeDataString(token);
         var encodedEmail = Uri.EscapeDataString(email);
-        var verificationUrl = $"http://localhost:3000/verify-email?token={encodedToken}&email={encodedEmail}";
+        var frontendUrl = string.IsNullOrEmpty(_settings.FrontendUrl) ? "http://localhost:3000" : _settings.FrontendUrl;
+        var verificationUrl = $"{frontendUrl}/verify-email?token={encodedToken}&email={encodedEmail}";
 
         _logger.LogInformation("=== EMAIL VERIFICATION (DevEmailService) ===");
         _logger.LogInformation("To: {Email}", toEmail);
@@ -30,7 +34,8 @@ public class DevEmailService : IEmailService
     {
         var encodedToken = Uri.EscapeDataString(token);
         var encodedEmail = Uri.EscapeDataString(email);
-        var resetUrl = $"http://localhost:3000/reset-password?token={encodedToken}&email={encodedEmail}";
+        var frontendUrl = string.IsNullOrEmpty(_settings.FrontendUrl) ? "http://localhost:3000" : _settings.FrontendUrl;
+        var resetUrl = $"{frontendUrl}/reset-password?token={encodedToken}&email={encodedEmail}";
 
         _logger.LogInformation("=== PASSWORD RESET (DevEmailService) ===");
         _logger.LogInformation("To: {Email}", toEmail);

@@ -4,6 +4,7 @@ using Domain.Entities;
 using Domain.Enums;
 using Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace Infrastructure.Services;
 
@@ -13,17 +14,20 @@ public class OrderService : IOrderService
     private readonly IPaymentService _paymentService;
     private readonly IStorefrontService _storefrontService;
     private readonly IFulfillmentService _fulfillmentService;
+    private readonly ILogger<OrderService> _logger;
 
     public OrderService(
         ApplicationDbContext context,
         IPaymentService paymentService,
         IStorefrontService storefrontService,
-        IFulfillmentService fulfillmentService)
+        IFulfillmentService fulfillmentService,
+        ILogger<OrderService> logger)
     {
         _context = context;
         _paymentService = paymentService;
         _storefrontService = storefrontService;
         _fulfillmentService = fulfillmentService;
+        _logger = logger;
     }
 
     public async Task<List<CustomerOrderResponse>> GetUserOrdersAsync(Guid userId, int page = 1, int pageSize = 20)
@@ -73,6 +77,19 @@ public class OrderService : IOrderService
             var order = await BuildOrderFromItemsAsync(userId, request.Items, request.CouponCode,
                 request.ShippingAddressId, request.Notes, request.ShippingMethod);
 
+            var razorpayOrderAmount = await _paymentService.GetRazorpayOrderAmountAsync(request.RazorpayOrderId);
+            if (razorpayOrderAmount.HasValue)
+            {
+                var paidAmountPaise = (long)(order.TotalAmount * 100);
+                if (razorpayOrderAmount.Value != paidAmountPaise)
+                {
+                    await transaction.RollbackAsync();
+                    throw new InvalidOperationException(
+                        $"Payment amount mismatch. Expected {razorpayOrderAmount.Value / 100m:C} but order total is {order.TotalAmount:C}. " +
+                        "Please contact support if you believe this is an error.");
+                }
+            }
+
             order.PaymentMethod = "Razorpay";
             order.PaymentStatus = "Paid";
             order.PaymentId = request.RazorpayPaymentId;
@@ -113,7 +130,7 @@ public class OrderService : IOrderService
         try
         {
             var order = await BuildOrderFromItemsAsync(userId, request.Items, request.CouponCode,
-                request.ShippingAddressId, request.Notes, null);
+                request.ShippingAddressId, request.Notes, request.ShippingMethod);
 
             order.PaymentMethod = "COD";
             order.PaymentStatus = "Pending";
@@ -488,18 +505,8 @@ public class OrderService : IOrderService
             return;
         }
 
-        var pendingOrder = await _context.Orders
-            .Where(o => o.PaymentMethod == "Razorpay" && o.Status == OrderStatus.PendingPayment && o.IsActive)
-            .OrderByDescending(o => o.CreatedAt)
-            .FirstOrDefaultAsync();
-
-        if (pendingOrder != null && pendingOrder.PaymentId == null)
-        {
-            pendingOrder.PaymentId = razorpayPaymentId;
-            pendingOrder.Status = OrderStatus.PaymentSuccessful;
-            pendingOrder.PaymentStatus = "Paid";
-            await _context.SaveChangesAsync();
-        }
+        _logger.LogWarning("Webhook payment.captured received for unknown payment {PaymentId} (order {OrderId}). " +
+            "No fallback assignment performed to prevent race conditions.", razorpayPaymentId, razorpayOrderId);
     }
 
     public async Task HandleWebhookPaymentFailedAsync(string razorpayOrderId, string? razorpayPaymentId)
@@ -510,14 +517,6 @@ public class OrderService : IOrderService
         {
             order = await _context.Orders
                 .Where(o => o.PaymentId == razorpayPaymentId && o.PaymentMethod == "Razorpay" && o.IsActive)
-                .FirstOrDefaultAsync();
-        }
-
-        if (order == null)
-        {
-            order = await _context.Orders
-                .Where(o => o.PaymentMethod == "Razorpay" && o.Status == OrderStatus.PendingPayment && o.IsActive)
-                .OrderByDescending(o => o.CreatedAt)
                 .FirstOrDefaultAsync();
         }
 

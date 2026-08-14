@@ -15,10 +15,12 @@ namespace API.Controllers;
 public class AdminOrdersController : ControllerBase
 {
     private readonly IAdminService _adminService;
+    private readonly IFulfillmentService _fulfillmentService;
 
-    public AdminOrdersController(IAdminService adminService)
+    public AdminOrdersController(IAdminService adminService, IFulfillmentService fulfillmentService)
     {
         _adminService = adminService;
+        _fulfillmentService = fulfillmentService;
     }
 
     [HttpGet]
@@ -42,5 +44,13 @@ public class AdminOrdersController : ControllerBase
         var result = await _adminService.UpdateOrderStatusAsync(id, request);
         if (result == null) return NotFound(ApiResponse<OrderResponse>.ErrorResponse("Order not found", 404));
         return Ok(ApiResponse<OrderResponse>.SuccessResponse(result, "Order status updated"));
+    }
+
+    [HttpGet("{id:guid}/fulfillment")]
+    public async Task<ActionResult<ApiResponse<FulfillmentOrderResponse>>> GetFulfillmentOrder(Guid id)
+    {
+        var result = await _fulfillmentService.GetFulfillmentOrderAsync(id);
+        if (result == null) return NotFound(ApiResponse<FulfillmentOrderResponse>.ErrorResponse("Fulfillment order not found", 404));
+        return Ok(ApiResponse<FulfillmentOrderResponse>.SuccessResponse(result));
     }
 }

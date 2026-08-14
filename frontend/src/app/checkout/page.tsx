@@ -159,6 +159,7 @@ export default function CheckoutPage() {
             router.push(`/orders/${order.id}`);
           } catch {
             toast.error("Payment verified but order creation failed. Contact support.");
+            setIsProcessing(false);
           }
         },
         prefill: {
@@ -200,6 +201,7 @@ export default function CheckoutPage() {
         items: orderItems,
         couponCode: appliedCoupon?.code,
         shippingAddressId: selectedAddressId,
+        shippingMethod,
       });
 
       toast.success("Order placed successfully! Pay on delivery.");

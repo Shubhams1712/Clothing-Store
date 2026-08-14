@@ -68,6 +68,8 @@ public class CreateCodOrderRequest
 
     public Guid? ShippingAddressId { get; set; }
 
+    public string? ShippingMethod { get; set; }
+
     public string? Notes { get; set; }
 }
 
