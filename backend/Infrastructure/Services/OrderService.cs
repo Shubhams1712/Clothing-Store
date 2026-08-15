@@ -372,7 +372,7 @@ public class OrderService : IOrderService
         }
 
         decimal taxAmount = 0;
-        decimal shippingAmount = subTotal >= 2000 ? 0 : 150;
+        decimal shippingAmount = shippingMethod == "express" ? 300 : (subTotal >= 2000 ? 0 : 150);
         decimal discountAmount = 0;
 
         if (!string.IsNullOrEmpty(couponCode))

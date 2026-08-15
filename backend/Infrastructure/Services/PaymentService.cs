@@ -5,6 +5,7 @@ using Application.Interfaces;
 using Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Razorpay.Api;
 
 namespace Infrastructure.Services;
@@ -13,11 +14,13 @@ public class PaymentService : IPaymentService
 {
     private readonly ApplicationDbContext _context;
     private readonly IConfiguration _configuration;
+    private readonly ILogger<PaymentService> _logger;
 
-    public PaymentService(ApplicationDbContext context, IConfiguration configuration)
+    public PaymentService(ApplicationDbContext context, IConfiguration configuration, ILogger<PaymentService> logger)
     {
         _context = context;
         _configuration = configuration;
+        _logger = logger;
     }
 
     public async Task<PaymentOrderResponse> CreateRazorpayOrderAsync(Guid userId, decimal amount, string currency, string? receipt)
@@ -66,8 +69,9 @@ public class PaymentService : IPaymentService
             Utils.verifyPaymentSignature(attributes);
             return true;
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Payment signature verification failed for order {OrderId}", razorpayOrderId);
             return false;
         }
     }
@@ -94,8 +98,9 @@ public class PaymentService : IPaymentService
             }
             return null;
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Failed to fetch Razorpay order amount for {OrderId}", razorpayOrderId);
             return null;
         }
     }
@@ -117,8 +122,9 @@ public class PaymentService : IPaymentService
                 Encoding.UTF8.GetBytes(computedSignature),
                 Encoding.UTF8.GetBytes(signature));
         }
-        catch
+        catch (Exception ex)
         {
+            _logger.LogWarning(ex, "Webhook signature verification failed");
             return false;
         }
     }

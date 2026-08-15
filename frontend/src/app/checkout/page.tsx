@@ -254,7 +254,8 @@ export default function CheckoutPage() {
   const shippingCost = shippingMethod === "express" ? 300 : (totalPrice >= 2000 ? 0 : 150);
   const taxAmount = reviewResult?.taxAmount ?? 0;
   const discountAmount = reviewResult?.discountAmount ?? 0;
-  const grandTotal = reviewResult?.totalAmount ?? (totalPrice + taxAmount + shippingCost - discountAmount);
+  const subTotal = reviewResult?.subTotal ?? totalPrice;
+  const grandTotal = subTotal + taxAmount + shippingCost - discountAmount;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
