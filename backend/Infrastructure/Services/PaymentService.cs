@@ -30,24 +30,40 @@ public class PaymentService : IPaymentService
         if (string.IsNullOrEmpty(keyId) || string.IsNullOrEmpty(keySecret))
             throw new InvalidOperationException("Razorpay credentials not configured. Please set them in Admin > Settings or via environment variables.");
 
-        var client = new RazorpayClient(keyId, keySecret);
+        if (amount <= 0)
+            throw new InvalidOperationException($"Invalid payment amount: {amount}. Amount must be greater than zero.");
 
-        var orderRequest = new Dictionary<string, object>
+        amount = Math.Round(amount, 2, MidpointRounding.AwayFromZero);
+
+        try
         {
-            { "amount", (long)(amount * 100) },
-            { "currency", currency },
-            { "receipt", receipt ?? Guid.NewGuid().ToString() }
-        };
+            var client = new RazorpayClient(keyId, keySecret);
 
-        var order = client.Order.Create(orderRequest);
+            var orderRequest = new Dictionary<string, object>
+            {
+                { "amount", (long)(amount * 100) },
+                { "currency", currency },
+                { "receipt", receipt ?? Guid.NewGuid().ToString() }
+            };
 
-        return new PaymentOrderResponse
+            _logger.LogInformation("Creating Razorpay order: Amount={Amount} ({AmountPaise} paise), Currency={Currency}, Mode={Mode}",
+                amount, (long)(amount * 100), currency, keyId.StartsWith("rzp_test") ? "TEST" : "LIVE");
+
+            var order = client.Order.Create(orderRequest);
+
+            return new PaymentOrderResponse
+            {
+                OrderId = order["id"].ToString()!,
+                Amount = amount,
+                Currency = currency,
+                KeyId = keyId
+            };
+        }
+        catch (Exception ex)
         {
-            OrderId = order["id"].ToString()!,
-            Amount = amount,
-            Currency = currency,
-            KeyId = keyId
-        };
+            _logger.LogError(ex, "Failed to create Razorpay order for amount {Amount}", amount);
+            throw new InvalidOperationException($"Failed to create payment order: {ex.Message}");
+        }
     }
 
     public async Task<bool> VerifyPaymentAsync(string razorpayOrderId, string razorpayPaymentId, string razorpaySignature)

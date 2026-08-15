@@ -125,6 +125,11 @@ export default function CheckoutPage() {
       return;
     }
 
+    if (grandTotal <= 0) {
+      toast.error("Invalid order amount. Please check your cart.");
+      return;
+    }
+
     setIsProcessing(true);
     try {
       const paymentOrder = await paymentService.createRazorpayOrder(grandTotal, "INR", `order-${Date.now()}`);
@@ -177,13 +182,15 @@ export default function CheckoutPage() {
       };
 
       const razorpay = new window.Razorpay(options);
-      razorpay.on("payment.failed", (response: { error: { description: string } }) => {
-        toast.error(`Payment failed: ${response.error.description}`);
+      razorpay.on("payment.failed", (response) => {
+        const desc = response.error?.description || "Payment failed. Please try again.";
+        toast.error(`Payment failed: ${desc}`);
         setIsProcessing(false);
       });
       razorpay.open();
-    } catch {
-      toast.error("Failed to initiate payment");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to initiate payment";
+      toast.error(message);
       setIsProcessing(false);
     }
   };
