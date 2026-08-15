@@ -585,7 +585,7 @@ public class StorefrontService : IStorefrontService
         }
 
         response.SubTotal = response.Items.Sum(i => i.TotalPrice);
-        response.TaxAmount = Math.Round(response.SubTotal * 0.18m, 2);
+        response.TaxAmount = 0;
         response.ShippingAmount = response.SubTotal >= 2000 ? 0 : 150;
 
         if (!string.IsNullOrEmpty(request.CouponCode))
