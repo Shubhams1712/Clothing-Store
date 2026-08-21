@@ -9,9 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Search, Trash2, Eye, EyeOff, Edit, AlertTriangle, Upload } from "lucide-react";
+import { Plus, Search, Trash2, Eye, EyeOff, Edit, AlertTriangle, Upload, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 import { formatPrice } from "@/lib/utils";
@@ -21,6 +22,8 @@ export default function AdminProductsPage() {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["admin-products", page, search],
@@ -38,6 +41,48 @@ export default function AdminProductsPage() {
     onSuccess: () => { toast.success("Product status toggled"); queryClient.invalidateQueries({ queryKey: ["admin-products"] }); },
     onError: () => { toast.error("Failed to toggle status"); },
   });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: (ids: string[]) => adminApi.products.bulkDelete(ids),
+    onSuccess: (result) => {
+      toast.success(`${result.deletedCount} products deleted`);
+      setSelectedIds(new Set());
+      setBulkDeleteOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["admin-products"] });
+    },
+    onError: () => { toast.error("Failed to delete products"); },
+  });
+
+  const handleToggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleToggleSelectAll = () => {
+    if (!data) return;
+    const allIds = data.items.map((p: Product) => p.id);
+    const allSelected = allIds.every((id: string) => selectedIds.has(id));
+
+    if (allSelected) {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        allIds.forEach((id: string) => next.delete(id));
+        return next;
+      });
+    } else {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        allIds.forEach((id: string) => next.add(id));
+        return next;
+      });
+    }
+  };
+
+  const allSelected = data && data.items.length > 0 && data.items.every((p: Product) => selectedIds.has(p.id));
 
   return (
     <div className="space-y-6">
@@ -71,6 +116,12 @@ export default function AdminProductsPage() {
                 className="pl-9"
               />
             </div>
+            {selectedIds.size > 0 && (
+              <Button variant="destructive" onClick={() => setBulkDeleteOpen(true)}>
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete ({selectedIds.size})
+              </Button>
+            )}
           </div>
 
           {isLoading ? (
@@ -92,6 +143,12 @@ export default function AdminProductsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead className="w-12">
+                      <Checkbox
+                        checked={allSelected}
+                        onCheckedChange={handleToggleSelectAll}
+                      />
+                    </TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>SKU</TableHead>
                     <TableHead>Price</TableHead>
@@ -103,6 +160,12 @@ export default function AdminProductsPage() {
                 <TableBody>
                   {data?.items.map((product: Product) => (
                     <TableRow key={product.id}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedIds.has(product.id)}
+                          onCheckedChange={() => handleToggleSelect(product.id)}
+                        />
+                      </TableCell>
                       <TableCell className="font-medium">{product.name}</TableCell>
                       <TableCell>{product.sku}</TableCell>
                       <TableCell>{formatPrice(product.price)}</TableCell>
@@ -134,7 +197,7 @@ export default function AdminProductsPage() {
                   ))}
                   {data?.items.length === 0 && (
                     <TableRow>
-                      <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                      <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                         No products found
                       </TableCell>
                     </TableRow>
@@ -172,6 +235,25 @@ export default function AdminProductsPage() {
             <Button variant="outline" onClick={() => setDeleteId(null)}>Cancel</Button>
             <Button variant="destructive" onClick={() => { if (deleteId) deleteMutation.mutate(deleteId); }} disabled={deleteMutation.isPending}>
               {deleteMutation.isPending ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={bulkDeleteOpen} onOpenChange={() => setBulkDeleteOpen(false)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete {selectedIds.size} Products</DialogTitle>
+          </DialogHeader>
+          <p>Are you sure you want to delete <strong>{selectedIds.size}</strong> selected products? This action cannot be undone.</p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkDeleteOpen(false)}>Cancel</Button>
+            <Button variant="destructive" onClick={() => bulkDeleteMutation.mutate(Array.from(selectedIds))} disabled={bulkDeleteMutation.isPending}>
+              {bulkDeleteMutation.isPending ? (
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Deleting...</>
+              ) : (
+                <><Trash2 className="mr-2 h-4 w-4" /> Delete {selectedIds.size} Products</>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

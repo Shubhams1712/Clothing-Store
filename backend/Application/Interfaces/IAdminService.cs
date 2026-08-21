@@ -11,6 +11,7 @@ public interface IAdminService
     Task<ProductResponse> CreateProductAsync(CreateProductRequest request);
     Task<ProductResponse?> UpdateProductAsync(Guid id, UpdateProductRequest request);
     Task<bool> DeleteProductAsync(Guid id);
+    Task<int> BulkDeleteProductsAsync(List<Guid> ids);
     Task<bool> ToggleProductPublishAsync(Guid id);
     Task<PaginatedResponse<CategoryResponse>> GetCategoriesAsync(PaginatedRequest request);
     Task<CategoryResponse?> GetCategoryByIdAsync(Guid id);

@@ -496,6 +496,32 @@ public class AdminService : IAdminService
         return true;
     }
 
+    public async Task<int> BulkDeleteProductsAsync(List<Guid> ids)
+    {
+        var products = await _context.Products
+            .Where(p => ids.Contains(p.Id) && p.IsActive)
+            .ToListAsync();
+
+        foreach (var product in products)
+        {
+            product.IsActive = false;
+            product.UpdatedAt = DateTime.UtcNow;
+        }
+
+        var mappings = await _context.ProductFulfillmentMappings
+            .Where(pfm => products.Select(p => p.Id).Contains(pfm.ProductId) && pfm.IsActive)
+            .ToListAsync();
+
+        foreach (var mapping in mappings)
+        {
+            mapping.IsActive = false;
+            mapping.UpdatedAt = DateTime.UtcNow;
+        }
+
+        await _context.SaveChangesAsync();
+        return products.Count;
+    }
+
     public async Task<PaginatedResponse<CategoryResponse>> GetCategoriesAsync(PaginatedRequest request)
     {
         var query = _context.Categories

@@ -71,6 +71,10 @@ export const adminApi = {
       const response = await api.post<{ data: BulkImportResponse }>(`${API_CONFIG.ENDPOINTS.ADMIN.PRODUCTS}/bulk-import`, { products });
       return response.data.data;
     },
+    bulkDelete: async (ids: string[]) => {
+      const response = await api.post<{ data: { deletedCount: number } }>(`${API_CONFIG.ENDPOINTS.ADMIN.PRODUCTS}/bulk-delete`, { ids });
+      return response.data.data;
+    },
   },
 
   categories: {

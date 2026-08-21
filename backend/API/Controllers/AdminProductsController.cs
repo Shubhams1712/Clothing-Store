@@ -79,4 +79,23 @@ public class AdminProductsController : ControllerBase
         var result = await _adminService.BulkImportProductsAsync(request);
         return Ok(ApiResponse<BulkProductImportResponse>.SuccessResponse(result, $"Import complete: {result.SuccessCount} succeeded, {result.FailureCount} failed"));
     }
+
+    [HttpPost("bulk-delete")]
+    public async Task<ActionResult<ApiResponse<object>>> BulkDelete([FromBody] BulkDeleteRequest request)
+    {
+        if (request.Ids == null || request.Ids.Count == 0)
+            return BadRequest(ApiResponse<object>.ErrorResponse("No product IDs provided", 400));
+
+        if (request.Ids.Count > 100)
+            return BadRequest(ApiResponse<object>.ErrorResponse("Maximum 100 products per bulk delete", 400));
+
+        var deleted = await _adminService.BulkDeleteProductsAsync(request.Ids);
+        return Ok(ApiResponse<object>.SuccessResponse(new { deletedCount = deleted }, $"{deleted} products deleted"));
+    }
+}
+
+public class BulkDeleteRequest
+{
+    [System.ComponentModel.DataAnnotations.Required]
+    public List<Guid> Ids { get; set; } = new();
 }
