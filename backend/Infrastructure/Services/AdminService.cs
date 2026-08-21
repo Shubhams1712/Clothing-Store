@@ -1665,8 +1665,14 @@ public class AdminService : IAdminService
             .Select(p => p.Sku)
             .ToListAsync();
 
+        var existingVariantSkus = await _context.ProductVariants
+            .Where(v => v.IsActive)
+            .Select(v => v.Sku)
+            .ToListAsync();
+
         var usedSlugs = new HashSet<string>(existingSlugs, StringComparer.OrdinalIgnoreCase);
         var usedSkus = new HashSet<string>(existingSkus, StringComparer.OrdinalIgnoreCase);
+        var usedVariantSkus = new HashSet<string>(existingVariantSkus, StringComparer.OrdinalIgnoreCase);
 
         var validCategoryIds = await _context.Categories
             .Where(c => c.IsActive)
@@ -1811,10 +1817,16 @@ public class AdminService : IAdminService
                         if (string.IsNullOrWhiteSpace(v.Sku))
                             continue;
 
-                        if (seenVariantSkus.Contains(v.Sku))
+                        var variantSku = v.Sku.Trim();
+
+                        if (seenVariantSkus.Contains(variantSku) || usedVariantSkus.Contains(variantSku))
                         {
-                            warnings.Add($"Duplicate variant SKU '{v.Sku}' skipped");
-                            continue;
+                            var originalSku = variantSku;
+                            var counter = 1;
+                            while (seenVariantSkus.Contains($"{originalSku}-{counter}") || usedVariantSkus.Contains($"{originalSku}-{counter}"))
+                                counter++;
+                            variantSku = $"{originalSku}-{counter}";
+                            warnings.Add($"Variant SKU '{originalSku}' already exists. Auto-changed to '{variantSku}'");
                         }
 
                         var variant = new ProductVariant
@@ -1823,7 +1835,7 @@ public class AdminService : IAdminService
                             ProductId = product.Id,
                             Size = v.Size?.Trim(),
                             Color = v.Color?.Trim(),
-                            Sku = v.Sku.Trim(),
+                            Sku = variantSku,
                             Price = v.Price < 0.01m ? firstItem.Price : v.Price,
                             Stock = Math.Max(0, v.Stock),
                             IsAvailable = v.IsAvailable,
@@ -1833,7 +1845,8 @@ public class AdminService : IAdminService
                             IsActive = true
                         };
 
-                        seenVariantSkus.Add(v.Sku);
+                        seenVariantSkus.Add(variantSku);
+                        usedVariantSkus.Add(variantSku);
                         allVariants.Add((variant, product));
                         _context.ProductVariants.Add(variant);
                         variantCount++;
@@ -1846,26 +1859,34 @@ public class AdminService : IAdminService
                     if (string.IsNullOrWhiteSpace(sku))
                         sku = $"{productSku}-DEFAULT";
 
-                    if (!seenVariantSkus.Contains(sku))
+                    if (seenVariantSkus.Contains(sku) || usedVariantSkus.Contains(sku))
                     {
-                        var defaultVariant = new ProductVariant
-                        {
-                            Id = Guid.NewGuid(),
-                            ProductId = product.Id,
-                            Sku = sku,
-                            Price = item.Price < 0.01m ? firstItem.Price : item.Price,
-                            Stock = Math.Max(0, item.Variants.FirstOrDefault()?.Stock ?? 0),
-                            IsAvailable = true,
-                            CreatedAt = DateTime.UtcNow,
-                            UpdatedAt = DateTime.UtcNow,
-                            IsActive = true
-                        };
-
-                        seenVariantSkus.Add(sku);
-                        allVariants.Add((defaultVariant, product));
-                        _context.ProductVariants.Add(defaultVariant);
-                        variantCount++;
+                        var originalSku = sku;
+                        var counter = 1;
+                        while (seenVariantSkus.Contains($"{originalSku}-{counter}") || usedVariantSkus.Contains($"{originalSku}-{counter}"))
+                            counter++;
+                        sku = $"{originalSku}-{counter}";
+                        warnings.Add($"Variant SKU '{originalSku}' already exists. Auto-changed to '{sku}'");
                     }
+
+                    var defaultVariant = new ProductVariant
+                    {
+                        Id = Guid.NewGuid(),
+                        ProductId = product.Id,
+                        Sku = sku,
+                        Price = item.Price < 0.01m ? firstItem.Price : item.Price,
+                        Stock = Math.Max(0, item.Variants.FirstOrDefault()?.Stock ?? 0),
+                        IsAvailable = true,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                        IsActive = true
+                    };
+
+                    seenVariantSkus.Add(sku);
+                    usedVariantSkus.Add(sku);
+                    allVariants.Add((defaultVariant, product));
+                    _context.ProductVariants.Add(defaultVariant);
+                    variantCount++;
                 }
             }
 
