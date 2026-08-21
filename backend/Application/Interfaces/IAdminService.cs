@@ -42,4 +42,5 @@ public interface IAdminService
     Task<StoreSettingsResponse> UpdateSettingsAsync(UpdateStoreSettingsRequest request);
     Task<PaginatedResponse<ProductResponse>> GetInventoryAsync(PaginatedRequest request);
     Task<bool> UpdateInventoryAsync(Guid variantId, int stock);
+    Task<BulkProductImportResponse> BulkImportProductsAsync(BulkProductImportRequest request);
 }

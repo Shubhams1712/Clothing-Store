@@ -21,6 +21,7 @@ import type {
   InventoryAnalytics,
   OrderAnalytics,
   ReportExportRequest,
+  BulkImportResponse,
 } from "@/types/admin";
 
 function buildQueryString(params: Record<string, string | number | boolean | undefined>): string {
@@ -65,6 +66,10 @@ export const adminApi = {
     },
     togglePublish: async (id: string) => {
       await api.patch(`${API_CONFIG.ENDPOINTS.ADMIN.PRODUCTS}/${id}/toggle-publish`);
+    },
+    bulkImport: async (products: Record<string, unknown>[]) => {
+      const response = await api.post<{ data: BulkImportResponse }>(`${API_CONFIG.ENDPOINTS.ADMIN.PRODUCTS}/bulk-import`, { products });
+      return response.data.data;
     },
   },
 

@@ -413,4 +413,55 @@ export interface ReportExportRequest {
   endDate?: string;
 }
 
+export interface BulkImportProduct {
+  name: string;
+  slug: string;
+  description: string;
+  shortDescription?: string;
+  sku: string;
+  price: number;
+  comparePrice?: number;
+  costPrice?: number;
+  brand?: string;
+  tags?: string;
+  isFeatured: boolean;
+  isPublished: boolean;
+  categoryId?: string;
+  seoTitle?: string;
+  seoDescription?: string;
+  isQikinkProduct: boolean;
+  qikinkProductId?: string;
+  qikinkProductName?: string;
+  designReference?: string;
+  designFileUrl?: string;
+  mockupUrl?: string;
+  variants: BulkImportVariant[];
+}
+
+export interface BulkImportVariant {
+  size?: string;
+  color?: string;
+  sku: string;
+  price: number;
+  stock: number;
+  isAvailable: boolean;
+  qikinkSku?: string;
+}
+
+export interface BulkImportResponse {
+  totalRows: number;
+  successCount: number;
+  failureCount: number;
+  results: BulkImportRowResult[];
+}
+
+export interface BulkImportRowResult {
+  rowNumber: number;
+  productName: string;
+  success: boolean;
+  productId?: string;
+  errorMessage?: string;
+  warnings: string[];
+}
+
 

@@ -26,11 +26,13 @@ import {
   ChevronLeft,
   Truck,
   BarChart3,
+  Upload,
 } from "lucide-react";
 
 const sidebarItems = [
   { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
   { label: "Products", href: "/admin/products", icon: Package },
+  { label: "Bulk Import", href: "/admin/products/bulk-import", icon: Upload },
   { label: "Categories", href: "/admin/categories", icon: FolderTree },
   { label: "Collections", href: "/admin/collections", icon: Layers },
   { label: "Orders", href: "/admin/orders", icon: ShoppingCart },

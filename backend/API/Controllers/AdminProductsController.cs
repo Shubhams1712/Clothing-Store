@@ -66,4 +66,17 @@ public class AdminProductsController : ControllerBase
         if (!result) return NotFound(ApiResponse<object>.ErrorResponse("Product not found", 404));
         return Ok(ApiResponse<object>.SuccessResponse(new { }, "Product status toggled"));
     }
+
+    [HttpPost("bulk-import")]
+    public async Task<ActionResult<ApiResponse<BulkProductImportResponse>>> BulkImport([FromBody] BulkProductImportRequest request)
+    {
+        if (request.Products == null || request.Products.Count == 0)
+            return BadRequest(ApiResponse<BulkProductImportResponse>.ErrorResponse("No products provided", 400));
+
+        if (request.Products.Count > 500)
+            return BadRequest(ApiResponse<BulkProductImportResponse>.ErrorResponse("Maximum 500 products per import", 400));
+
+        var result = await _adminService.BulkImportProductsAsync(request);
+        return Ok(ApiResponse<BulkProductImportResponse>.SuccessResponse(result, $"Import complete: {result.SuccessCount} succeeded, {result.FailureCount} failed"));
+    }
 }

@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Search, Trash2, Eye, EyeOff, Edit, AlertTriangle } from "lucide-react";
+import { Plus, Search, Trash2, Eye, EyeOff, Edit, AlertTriangle, Upload } from "lucide-react";
 import { toast } from "sonner";
 import Link from "next/link";
 import { formatPrice } from "@/lib/utils";
@@ -43,12 +43,20 @@ export default function AdminProductsPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Products</h1>
-        <Link href="/admin/products/new">
-          <Button>
-            <Plus className="mr-2 h-4 w-4" />
-            Add Product
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link href="/admin/products/bulk-import">
+            <Button variant="outline">
+              <Upload className="mr-2 h-4 w-4" />
+              Bulk Import
+            </Button>
+          </Link>
+          <Link href="/admin/products/new">
+            <Button>
+              <Plus className="mr-2 h-4 w-4" />
+              Add Product
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <Card>

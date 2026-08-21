@@ -220,3 +220,90 @@ public class ProductImageResponse
     public int SortOrder { get; set; }
     public bool IsFeatured { get; set; }
 }
+
+public class BulkProductImportRequest
+{
+    [Required]
+    public List<BulkProductImportItem> Products { get; set; } = new();
+}
+
+public class BulkProductImportItem
+{
+    [Required]
+    [MaxLength(200)]
+    public string Name { get; set; } = string.Empty;
+
+    [Required]
+    [MaxLength(200)]
+    public string Slug { get; set; } = string.Empty;
+
+    [MaxLength(2000)]
+    public string Description { get; set; } = string.Empty;
+
+    [MaxLength(500)]
+    public string? ShortDescription { get; set; }
+
+    [Required]
+    [MaxLength(100)]
+    public string Sku { get; set; } = string.Empty;
+
+    [Required]
+    [Range(0.01, double.MaxValue)]
+    public decimal Price { get; set; }
+
+    public decimal? ComparePrice { get; set; }
+    public decimal? CostPrice { get; set; }
+
+    [MaxLength(100)]
+    public string? Brand { get; set; }
+
+    [MaxLength(500)]
+    public string? Tags { get; set; }
+
+    public bool IsFeatured { get; set; }
+    public bool IsPublished { get; set; }
+    public Guid? CategoryId { get; set; }
+
+    [MaxLength(200)]
+    public string? SeoTitle { get; set; }
+
+    [MaxLength(500)]
+    public string? SeoDescription { get; set; }
+
+    public bool IsQikinkProduct { get; set; }
+
+    [MaxLength(100)]
+    public string? QikinkProductId { get; set; }
+
+    [MaxLength(200)]
+    public string? QikinkProductName { get; set; }
+
+    [MaxLength(200)]
+    public string? DesignReference { get; set; }
+
+    [MaxLength(1000)]
+    public string? DesignFileUrl { get; set; }
+
+    [MaxLength(1000)]
+    public string? MockupUrl { get; set; }
+
+    public List<CreateProductVariantRequest> Variants { get; set; } = new();
+}
+
+public class BulkProductImportResponse
+{
+    public int TotalRows { get; set; }
+    public int SuccessCount { get; set; }
+    public int FailureCount { get; set; }
+    public List<BulkImportRowResult> Results { get; set; } = new();
+}
+
+public class BulkImportRowResult
+{
+    public int RowNumber { get; set; }
+    public string ProductName { get; set; } = string.Empty;
+    public bool Success { get; set; }
+    public Guid? ProductId { get; set; }
+    public string? ErrorMessage { get; set; }
+    public List<string> Warnings { get; set; } = new();
+}

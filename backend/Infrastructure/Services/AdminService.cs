@@ -1621,4 +1621,206 @@ public class AdminService : IAdminService
 
         await _context.SaveChangesAsync();
     }
+
+    public async Task<BulkProductImportResponse> BulkImportProductsAsync(BulkProductImportRequest request)
+    {
+        var response = new BulkProductImportResponse
+        {
+            TotalRows = request.Products.Count
+        };
+
+        var existingSlugs = await _context.Products
+            .Where(p => p.IsActive)
+            .Select(p => p.Slug)
+            .ToListAsync();
+
+        var existingSkus = await _context.Products
+            .Where(p => p.IsActive)
+            .Select(p => p.Sku)
+            .ToListAsync();
+
+        var usedSlugs = new HashSet<string>(existingSlugs, StringComparer.OrdinalIgnoreCase);
+        var usedSkus = new HashSet<string>(existingSkus, StringComparer.OrdinalIgnoreCase);
+
+        var validCategoryIds = await _context.Categories
+            .Where(c => c.IsActive)
+            .Select(c => c.Id)
+            .ToListAsync();
+
+        var allProducts = new List<Product>();
+        var allVariants = new List<(ProductVariant variant, Product product)>();
+
+        for (int i = 0; i < request.Products.Count; i++)
+        {
+            var item = request.Products[i];
+            var rowNum = i + 1;
+            var warnings = new List<string>();
+
+            if (string.IsNullOrWhiteSpace(item.Name))
+            {
+                response.Results.Add(new BulkImportRowResult { RowNumber = rowNum, ProductName = item.Name, Success = false, ErrorMessage = "Product name is required" });
+                response.FailureCount++;
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(item.Sku))
+            {
+                response.Results.Add(new BulkImportRowResult { RowNumber = rowNum, ProductName = item.Name, Success = false, ErrorMessage = "SKU is required" });
+                response.FailureCount++;
+                continue;
+            }
+
+            if (item.Price < 0.01m)
+            {
+                response.Results.Add(new BulkImportRowResult { RowNumber = rowNum, ProductName = item.Name, Success = false, ErrorMessage = "Price must be at least 0.01" });
+                response.FailureCount++;
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(item.Slug))
+            {
+                item.Slug = item.Name.ToLowerInvariant().Replace(" ", "-").Replace("'", "");
+            }
+
+            if (usedSlugs.Contains(item.Slug))
+            {
+                var originalSlug = item.Slug;
+                var counter = 1;
+                while (usedSlugs.Contains($"{originalSlug}-{counter}"))
+                    counter++;
+                item.Slug = $"{originalSlug}-{counter}";
+                warnings.Add($"Slug '{originalSlug}' was taken. Auto-changed to '{item.Slug}'");
+            }
+
+            if (usedSkus.Contains(item.Sku))
+            {
+                response.Results.Add(new BulkImportRowResult { RowNumber = rowNum, ProductName = item.Name, Success = false, ErrorMessage = $"SKU '{item.Sku}' already exists" });
+                response.FailureCount++;
+                continue;
+            }
+
+            if (item.CategoryId.HasValue && !validCategoryIds.Contains(item.CategoryId.Value))
+            {
+                warnings.Add($"Category ID '{item.CategoryId}' not found. Product will be created without a category.");
+                item.CategoryId = null;
+            }
+
+            if (item.IsQikinkProduct && string.IsNullOrWhiteSpace(item.QikinkProductId))
+            {
+                response.Results.Add(new BulkImportRowResult { RowNumber = rowNum, ProductName = item.Name, Success = false, ErrorMessage = "Qikink Product ID is required when Qikink fulfillment is enabled" });
+                response.FailureCount++;
+                continue;
+            }
+
+            usedSlugs.Add(item.Slug);
+            usedSkus.Add(item.Sku);
+
+            var product = new Product
+            {
+                Id = Guid.NewGuid(),
+                Name = item.Name.Trim(),
+                Slug = item.Slug.Trim(),
+                Description = item.Description?.Trim() ?? string.Empty,
+                ShortDescription = item.ShortDescription?.Trim(),
+                Sku = item.Sku.Trim(),
+                Price = item.Price,
+                ComparePrice = item.ComparePrice,
+                CostPrice = item.CostPrice,
+                Brand = item.Brand?.Trim(),
+                Tags = item.Tags?.Trim(),
+                IsFeatured = item.IsFeatured,
+                IsPublished = item.IsPublished,
+                CategoryId = item.CategoryId,
+                SeoTitle = item.SeoTitle?.Trim(),
+                SeoDescription = item.SeoDescription?.Trim(),
+                IsQikinkProduct = item.IsQikinkProduct,
+                QikinkProductId = item.QikinkProductId?.Trim(),
+                QikinkProductName = item.QikinkProductName?.Trim(),
+                DesignReference = item.DesignReference?.Trim(),
+                DesignFileUrl = item.DesignFileUrl?.Trim(),
+                MockupUrl = item.MockupUrl?.Trim(),
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow,
+                IsActive = true
+            };
+
+            allProducts.Add(product);
+            _context.Products.Add(product);
+
+            if (item.Variants.Any())
+            {
+                var seenVariantSkus = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var v in item.Variants)
+                {
+                    if (string.IsNullOrWhiteSpace(v.Sku))
+                        continue;
+
+                    if (seenVariantSkus.Contains(v.Sku))
+                    {
+                        warnings.Add($"Duplicate variant SKU '{v.Sku}' skipped");
+                        continue;
+                    }
+
+                    var variant = new ProductVariant
+                    {
+                        Id = Guid.NewGuid(),
+                        ProductId = product.Id,
+                        Size = v.Size?.Trim(),
+                        Color = v.Color?.Trim(),
+                        Sku = v.Sku.Trim(),
+                        Price = v.Price < 0.01m ? item.Price : v.Price,
+                        Stock = Math.Max(0, v.Stock),
+                        IsAvailable = v.IsAvailable,
+                        QikinkSku = v.QikinkSku?.Trim(),
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                        IsActive = true
+                    };
+
+                    seenVariantSkus.Add(v.Sku);
+                    allVariants.Add((variant, product));
+                    _context.ProductVariants.Add(variant);
+                }
+            }
+            else
+            {
+                var defaultVariant = new ProductVariant
+                {
+                    Id = Guid.NewGuid(),
+                    ProductId = product.Id,
+                    Sku = $"{item.Sku}-DEFAULT",
+                    Price = item.Price,
+                    Stock = 0,
+                    IsAvailable = true,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
+                    IsActive = true
+                };
+                allVariants.Add((defaultVariant, product));
+                _context.ProductVariants.Add(defaultVariant);
+                warnings.Add("No variants provided. A default variant was created.");
+            }
+
+            response.Results.Add(new BulkImportRowResult
+            {
+                RowNumber = rowNum,
+                ProductName = item.Name,
+                Success = true,
+                ProductId = product.Id,
+                Warnings = warnings
+            });
+            response.SuccessCount++;
+        }
+
+        await _context.SaveChangesAsync();
+
+        var qikinkProducts = allProducts.Where(p => p.IsQikinkProduct).ToList();
+        foreach (var product in qikinkProducts)
+        {
+            var variants = allVariants.Where(v => v.product.Id == product.Id).Select(v => v.variant).ToList();
+            await SyncFulfillmentMappingsAsync(product.Id, variants, product);
+        }
+
+        return response;
+    }
 }
