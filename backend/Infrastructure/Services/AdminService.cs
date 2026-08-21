@@ -1905,7 +1905,53 @@ public class AdminService : IAdminService
             response.SuccessCount++;
         }
 
-        await _context.SaveChangesAsync();
+        try
+        {
+            await _context.SaveChangesAsync();
+        }
+        catch (Microsoft.EntityFrameworkCore.DbUpdateException ex)
+        {
+            _context.ChangeTracker.Clear();
+            var innerMsg = ex.InnerException?.Message ?? ex.Message;
+
+            if (innerMsg.Contains("unique", StringComparison.OrdinalIgnoreCase) ||
+                innerMsg.Contains("duplicate", StringComparison.OrdinalIgnoreCase))
+            {
+                return new BulkProductImportResponse
+                {
+                    TotalRows = request.Products.Count,
+                    SuccessCount = 0,
+                    FailureCount = 1,
+                    Results = new List<BulkImportRowResult>
+                    {
+                        new BulkImportRowResult
+                        {
+                            RowNumber = 1,
+                            ProductName = "Bulk Import",
+                            Success = false,
+                            ErrorMessage = $"Duplicate slug or SKU detected in database. Please ensure no existing products conflict. Detail: {innerMsg}"
+                        }
+                    }
+                };
+            }
+
+            return new BulkProductImportResponse
+            {
+                TotalRows = request.Products.Count,
+                SuccessCount = 0,
+                FailureCount = 1,
+                Results = new List<BulkImportRowResult>
+                {
+                    new BulkImportRowResult
+                    {
+                        RowNumber = 1,
+                        ProductName = "Bulk Import",
+                        Success = false,
+                        ErrorMessage = $"Database error: {innerMsg}"
+                    }
+                }
+            };
+        }
 
         var qikinkProducts = allProducts.Where(p => p.IsQikinkProduct).ToList();
         foreach (var product in qikinkProducts)
