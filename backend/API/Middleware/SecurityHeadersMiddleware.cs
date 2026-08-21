@@ -16,9 +16,9 @@ public class SecurityHeadersMiddleware
         var headers = context.Response.Headers;
 
         headers["X-Content-Type-Options"] = "nosniff";
-        headers["X-Frame-Options"] = "DENY";
+        headers["X-Frame-Options"] = "SAMEORIGIN";
         headers["Referrer-Policy"] = "strict-origin-when-cross-origin";
-        headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=(self)";
+        headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=(), payment=*";
         headers["X-XSS-Protection"] = "1; mode=block";
 
         if (!_environment.IsDevelopment())
@@ -37,15 +37,15 @@ public class SecurityHeadersMiddleware
         var directives = new List<string>
         {
             "default-src 'self'",
-            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com",
+            "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com https://*.razorpay.com",
             "style-src 'self' 'unsafe-inline'",
-            "img-src 'self' data: blob: https://res.cloudinary.com https://*.cloudinary.com",
+            "img-src 'self' data: blob: https://res.cloudinary.com https://*.cloudinary.com https://*.razorpay.com",
             "font-src 'self' https://fonts.gstatic.com",
-            "connect-src 'self'",
-            "frame-src https://checkout.razorpay.com",
+            "connect-src 'self' https://api.razorpay.com https://*.razorpay.com",
+            "frame-src 'self' https://checkout.razorpay.com https://*.razorpay.com",
             "object-src 'none'",
             "base-uri 'self'",
-            "form-action 'self'",
+            "form-action 'self' https://*.razorpay.com",
         };
 
         return string.Join("; ", directives);
