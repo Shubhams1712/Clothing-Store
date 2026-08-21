@@ -274,11 +274,75 @@ export default function BulkImportPage() {
           setParseError(`Missing required columns: ${missingHeaders.join(", ")}`);
           return;
         }
-        const parsed = rows.map((row, i) => csvRowToProduct(row, i));
+
+        const grouped = new Map<string, { firstRow: Record<string, string>; rows: Record<string, string>[]; startIndex: number }>();
+        for (let i = 0; i < rows.length; i++) {
+          const row = rows[i];
+          const name = (row.name || "").trim();
+          const slug = (row.slug || "").trim();
+          const key = `${name}|||${slug}`;
+          if (!grouped.has(key)) {
+            grouped.set(key, { firstRow: row, rows: [], startIndex: i });
+          }
+          grouped.get(key)!.rows.push(row);
+        }
+
+        const parsed: PreviewProduct[] = [];
+        let groupIndex = 0;
+        for (const [, group] of grouped) {
+          const firstRow = group.firstRow;
+          const allVariants: BulkImportVariant[] = [];
+          const seenVariantSkus = new Set<string>();
+
+          for (const row of group.rows) {
+            const v = parseVariantsFromRow(row);
+            for (const variant of v) {
+              if (!seenVariantSkus.has(variant.sku)) {
+                seenVariantSkus.add(variant.sku);
+                allVariants.push(variant);
+              }
+            }
+          }
+
+          const product: BulkImportProduct = {
+            name: firstRow.name || "",
+            slug: firstRow.slug || "",
+            description: firstRow.description || "",
+            shortDescription: firstRow.shortDescription || undefined,
+            sku: firstRow.sku || "",
+            price: toNumber(firstRow.price, 0.01),
+            comparePrice: firstRow.comparePrice ? toNumber(firstRow.comparePrice) : undefined,
+            costPrice: firstRow.costPrice ? toNumber(firstRow.costPrice) : undefined,
+            brand: firstRow.brand || undefined,
+            tags: firstRow.tags || undefined,
+            isFeatured: toBool(firstRow.isFeatured),
+            isPublished: toBool(firstRow.isPublished),
+            categoryId: firstRow.categoryId || undefined,
+            seoTitle: firstRow.seoTitle || undefined,
+            seoDescription: firstRow.seoDescription || undefined,
+            isQikinkProduct: toBool(firstRow.isQikinkProduct),
+            qikinkProductId: firstRow.qikinkProductId || undefined,
+            qikinkProductName: firstRow.qikinkProductName || undefined,
+            designReference: firstRow.designReference || undefined,
+            designFileUrl: firstRow.designFileUrl || undefined,
+            mockupUrl: firstRow.mockupUrl || undefined,
+            variants: allVariants,
+          };
+
+          const validationErrors = validateProduct(product, groupIndex);
+          parsed.push({
+            ...product,
+            rowIndex: group.startIndex + 2,
+            validationErrors,
+            isValid: validationErrors.length === 0,
+          });
+          groupIndex++;
+        }
+
         setProducts(parsed);
         setSelectedRows(new Set(parsed.filter((p) => p.isValid).map((_, i) => i)));
         setStep("preview");
-        toast.success(`Parsed ${parsed.length} products from CSV`);
+        toast.success(`Parsed ${rows.length} CSV rows into ${parsed.length} products`);
       } catch {
         setParseError("Failed to parse CSV file. Please check the format.");
       }
@@ -696,6 +760,18 @@ export default function BulkImportPage() {
                           <Badge variant="outline">
                             {product.variants.length} variant{product.variants.length !== 1 ? "s" : ""}
                           </Badge>
+                          {products.length > 0 && (
+                            <span className="ml-2 text-xs text-muted-foreground">
+                              {product.variants.length > 0 && (() => {
+                                const sizes = [...new Set(product.variants.map(v => v.size).filter(Boolean))];
+                                const colors = [...new Set(product.variants.map(v => v.color).filter(Boolean))];
+                                const parts: string[] = [];
+                                if (sizes.length > 0) parts.push(`${sizes.length} size${sizes.length > 1 ? "s" : ""}`);
+                                if (colors.length > 0) parts.push(`${colors.length} color${colors.length > 1 ? "s" : ""}`);
+                                return parts.length > 0 ? parts.join(", ") : null;
+                              })()}
+                            </span>
+                          )}
                         </td>
                         <td className="py-3 px-3">
                           {product.isValid ? (
@@ -760,7 +836,7 @@ export default function BulkImportPage() {
               <div className="grid gap-4 md:grid-cols-4">
                 <div className="text-center">
                   <div className="text-2xl font-bold">{products.length}</div>
-                  <div className="text-sm text-muted-foreground">Total Rows</div>
+                  <div className="text-sm text-muted-foreground">Products</div>
                 </div>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-green-600">{validCount}</div>

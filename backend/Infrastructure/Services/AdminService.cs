@@ -1673,98 +1673,124 @@ public class AdminService : IAdminService
             .Select(c => c.Id)
             .ToListAsync();
 
-        var allProducts = new List<Product>();
-        var allVariants = new List<(ProductVariant variant, Product product)>();
+        var groupedProducts = new Dictionary<string, List<BulkProductImportItem>>(StringComparer.OrdinalIgnoreCase);
+        var rowMapping = new Dictionary<string, List<int>>();
 
         for (int i = 0; i < request.Products.Count; i++)
         {
             var item = request.Products[i];
-            var rowNum = i + 1;
+            var key = $"{item.Name.Trim()}|||{(item.Slug?.Trim() ?? "")}";
+
+            if (!groupedProducts.ContainsKey(key))
+            {
+                groupedProducts[key] = new List<BulkProductImportItem>();
+                rowMapping[key] = new List<int>();
+            }
+            groupedProducts[key].Add(item);
+            rowMapping[key].Add(i + 2);
+        }
+
+        var allProducts = new List<Product>();
+        var allVariants = new List<(ProductVariant variant, Product product)>();
+        int productIndex = 0;
+
+        foreach (var kvp in groupedProducts)
+        {
+            var groupKey = kvp.Key;
+            var items = kvp.Value;
+            var rows = rowMapping[groupKey];
+            var firstItem = items[0];
+            productIndex++;
+
             var warnings = new List<string>();
 
-            if (string.IsNullOrWhiteSpace(item.Name))
+            if (string.IsNullOrWhiteSpace(firstItem.Name))
             {
-                response.Results.Add(new BulkImportRowResult { RowNumber = rowNum, ProductName = item.Name, Success = false, ErrorMessage = "Product name is required" });
+                response.Results.Add(new BulkImportRowResult { RowNumber = rows[0], ProductName = firstItem.Name, Success = false, ErrorMessage = "Product name is required" });
                 response.FailureCount++;
                 continue;
             }
 
-            if (string.IsNullOrWhiteSpace(item.Sku))
+            if (firstItem.Price < 0.01m)
             {
-                response.Results.Add(new BulkImportRowResult { RowNumber = rowNum, ProductName = item.Name, Success = false, ErrorMessage = "SKU is required" });
+                response.Results.Add(new BulkImportRowResult { RowNumber = rows[0], ProductName = firstItem.Name, Success = false, ErrorMessage = "Price must be at least 0.01" });
                 response.FailureCount++;
                 continue;
             }
 
-            if (item.Price < 0.01m)
+            var slug = firstItem.Slug;
+            if (string.IsNullOrWhiteSpace(slug))
             {
-                response.Results.Add(new BulkImportRowResult { RowNumber = rowNum, ProductName = item.Name, Success = false, ErrorMessage = "Price must be at least 0.01" });
-                response.FailureCount++;
-                continue;
+                slug = firstItem.Name.ToLowerInvariant().Replace(" ", "-").Replace("'", "");
             }
 
-            if (string.IsNullOrWhiteSpace(item.Slug))
+            if (usedSlugs.Contains(slug))
             {
-                item.Slug = item.Name.ToLowerInvariant().Replace(" ", "-").Replace("'", "");
-            }
-
-            if (usedSlugs.Contains(item.Slug))
-            {
-                var originalSlug = item.Slug;
+                var originalSlug = slug;
                 var counter = 1;
                 while (usedSlugs.Contains($"{originalSlug}-{counter}"))
                     counter++;
-                item.Slug = $"{originalSlug}-{counter}";
-                warnings.Add($"Slug '{originalSlug}' was taken. Auto-changed to '{item.Slug}'");
+                slug = $"{originalSlug}-{counter}";
+                warnings.Add($"Slug '{originalSlug}' was taken. Auto-changed to '{slug}'");
             }
 
-            if (usedSkus.Contains(item.Sku))
+            var productSku = firstItem.Sku;
+            if (string.IsNullOrWhiteSpace(productSku))
             {
-                response.Results.Add(new BulkImportRowResult { RowNumber = rowNum, ProductName = item.Name, Success = false, ErrorMessage = $"SKU '{item.Sku}' already exists" });
+                productSku = $"PRODUCT-{productIndex}";
+                warnings.Add($"No product SKU provided. Generated: {productSku}");
+            }
+
+            if (usedSkus.Contains(productSku))
+            {
+                var originalSku = productSku;
+                var counter = 1;
+                while (usedSkus.Contains($"{originalSku}-{counter}"))
+                    counter++;
+                productSku = $"{originalSku}-{counter}";
+                warnings.Add($"Product SKU '{originalSku}' was taken. Auto-changed to '{productSku}'");
+            }
+
+            if (firstItem.CategoryId.HasValue && !validCategoryIds.Contains(firstItem.CategoryId.Value))
+            {
+                warnings.Add($"Category ID '{firstItem.CategoryId}' not found. Product will be created without a category.");
+                firstItem.CategoryId = null;
+            }
+
+            if (firstItem.IsQikinkProduct && string.IsNullOrWhiteSpace(firstItem.QikinkProductId))
+            {
+                response.Results.Add(new BulkImportRowResult { RowNumber = rows[0], ProductName = firstItem.Name, Success = false, ErrorMessage = "Qikink Product ID is required when Qikink fulfillment is enabled" });
                 response.FailureCount++;
                 continue;
             }
 
-            if (item.CategoryId.HasValue && !validCategoryIds.Contains(item.CategoryId.Value))
-            {
-                warnings.Add($"Category ID '{item.CategoryId}' not found. Product will be created without a category.");
-                item.CategoryId = null;
-            }
-
-            if (item.IsQikinkProduct && string.IsNullOrWhiteSpace(item.QikinkProductId))
-            {
-                response.Results.Add(new BulkImportRowResult { RowNumber = rowNum, ProductName = item.Name, Success = false, ErrorMessage = "Qikink Product ID is required when Qikink fulfillment is enabled" });
-                response.FailureCount++;
-                continue;
-            }
-
-            usedSlugs.Add(item.Slug);
-            usedSkus.Add(item.Sku);
+            usedSlugs.Add(slug);
+            usedSkus.Add(productSku);
 
             var product = new Product
             {
                 Id = Guid.NewGuid(),
-                Name = item.Name.Trim(),
-                Slug = item.Slug.Trim(),
-                Description = item.Description?.Trim() ?? string.Empty,
-                ShortDescription = item.ShortDescription?.Trim(),
-                Sku = item.Sku.Trim(),
-                Price = item.Price,
-                ComparePrice = item.ComparePrice,
-                CostPrice = item.CostPrice,
-                Brand = item.Brand?.Trim(),
-                Tags = item.Tags?.Trim(),
-                IsFeatured = item.IsFeatured,
-                IsPublished = item.IsPublished,
-                CategoryId = item.CategoryId,
-                SeoTitle = item.SeoTitle?.Trim(),
-                SeoDescription = item.SeoDescription?.Trim(),
-                IsQikinkProduct = item.IsQikinkProduct,
-                QikinkProductId = item.QikinkProductId?.Trim(),
-                QikinkProductName = item.QikinkProductName?.Trim(),
-                DesignReference = item.DesignReference?.Trim(),
-                DesignFileUrl = item.DesignFileUrl?.Trim(),
-                MockupUrl = item.MockupUrl?.Trim(),
+                Name = firstItem.Name.Trim(),
+                Slug = slug.Trim(),
+                Description = firstItem.Description?.Trim() ?? string.Empty,
+                ShortDescription = firstItem.ShortDescription?.Trim(),
+                Sku = productSku.Trim(),
+                Price = firstItem.Price,
+                ComparePrice = firstItem.ComparePrice,
+                CostPrice = firstItem.CostPrice,
+                Brand = firstItem.Brand?.Trim(),
+                Tags = firstItem.Tags?.Trim(),
+                IsFeatured = firstItem.IsFeatured,
+                IsPublished = firstItem.IsPublished,
+                CategoryId = firstItem.CategoryId,
+                SeoTitle = firstItem.SeoTitle?.Trim(),
+                SeoDescription = firstItem.SeoDescription?.Trim(),
+                IsQikinkProduct = firstItem.IsQikinkProduct,
+                QikinkProductId = firstItem.QikinkProductId?.Trim(),
+                QikinkProductName = firstItem.QikinkProductName?.Trim(),
+                DesignReference = firstItem.DesignReference?.Trim(),
+                DesignFileUrl = firstItem.DesignFileUrl?.Trim(),
+                MockupUrl = firstItem.MockupUrl?.Trim(),
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow,
                 IsActive = true
@@ -1773,49 +1799,84 @@ public class AdminService : IAdminService
             allProducts.Add(product);
             _context.Products.Add(product);
 
-            if (item.Variants.Any())
+            var seenVariantSkus = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            int variantCount = 0;
+
+            foreach (var item in items)
             {
-                var seenVariantSkus = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                foreach (var v in item.Variants)
+                if (item.Variants.Any())
                 {
-                    if (string.IsNullOrWhiteSpace(v.Sku))
-                        continue;
-
-                    if (seenVariantSkus.Contains(v.Sku))
+                    foreach (var v in item.Variants)
                     {
-                        warnings.Add($"Duplicate variant SKU '{v.Sku}' skipped");
-                        continue;
+                        if (string.IsNullOrWhiteSpace(v.Sku))
+                            continue;
+
+                        if (seenVariantSkus.Contains(v.Sku))
+                        {
+                            warnings.Add($"Duplicate variant SKU '{v.Sku}' skipped");
+                            continue;
+                        }
+
+                        var variant = new ProductVariant
+                        {
+                            Id = Guid.NewGuid(),
+                            ProductId = product.Id,
+                            Size = v.Size?.Trim(),
+                            Color = v.Color?.Trim(),
+                            Sku = v.Sku.Trim(),
+                            Price = v.Price < 0.01m ? firstItem.Price : v.Price,
+                            Stock = Math.Max(0, v.Stock),
+                            IsAvailable = v.IsAvailable,
+                            QikinkSku = v.QikinkSku?.Trim(),
+                            CreatedAt = DateTime.UtcNow,
+                            UpdatedAt = DateTime.UtcNow,
+                            IsActive = true
+                        };
+
+                        seenVariantSkus.Add(v.Sku);
+                        allVariants.Add((variant, product));
+                        _context.ProductVariants.Add(variant);
+                        variantCount++;
                     }
+                }
+                else
+                {
+                    var rowIdx = items.IndexOf(item);
+                    var sku = item.Sku;
+                    if (string.IsNullOrWhiteSpace(sku))
+                        sku = $"{productSku}-DEFAULT";
 
-                    var variant = new ProductVariant
+                    if (!seenVariantSkus.Contains(sku))
                     {
-                        Id = Guid.NewGuid(),
-                        ProductId = product.Id,
-                        Size = v.Size?.Trim(),
-                        Color = v.Color?.Trim(),
-                        Sku = v.Sku.Trim(),
-                        Price = v.Price < 0.01m ? item.Price : v.Price,
-                        Stock = Math.Max(0, v.Stock),
-                        IsAvailable = v.IsAvailable,
-                        QikinkSku = v.QikinkSku?.Trim(),
-                        CreatedAt = DateTime.UtcNow,
-                        UpdatedAt = DateTime.UtcNow,
-                        IsActive = true
-                    };
+                        var defaultVariant = new ProductVariant
+                        {
+                            Id = Guid.NewGuid(),
+                            ProductId = product.Id,
+                            Sku = sku,
+                            Price = item.Price < 0.01m ? firstItem.Price : item.Price,
+                            Stock = Math.Max(0, item.Variants.FirstOrDefault()?.Stock ?? 0),
+                            IsAvailable = true,
+                            CreatedAt = DateTime.UtcNow,
+                            UpdatedAt = DateTime.UtcNow,
+                            IsActive = true
+                        };
 
-                    seenVariantSkus.Add(v.Sku);
-                    allVariants.Add((variant, product));
-                    _context.ProductVariants.Add(variant);
+                        seenVariantSkus.Add(sku);
+                        allVariants.Add((defaultVariant, product));
+                        _context.ProductVariants.Add(defaultVariant);
+                        variantCount++;
+                    }
                 }
             }
-            else
+
+            if (variantCount == 0)
             {
                 var defaultVariant = new ProductVariant
                 {
                     Id = Guid.NewGuid(),
                     ProductId = product.Id,
-                    Sku = $"{item.Sku}-DEFAULT",
-                    Price = item.Price,
+                    Sku = $"{productSku}-DEFAULT",
+                    Price = firstItem.Price,
                     Stock = 0,
                     IsAvailable = true,
                     CreatedAt = DateTime.UtcNow,
@@ -1824,13 +1885,19 @@ public class AdminService : IAdminService
                 };
                 allVariants.Add((defaultVariant, product));
                 _context.ProductVariants.Add(defaultVariant);
-                warnings.Add("No variants provided. A default variant was created.");
+                variantCount = 1;
+                warnings.Add("No valid variants found. A default variant was created.");
+            }
+
+            if (items.Count > 1)
+            {
+                warnings.Add($"Merged {items.Count} CSV rows into 1 product with {variantCount} variants");
             }
 
             response.Results.Add(new BulkImportRowResult
             {
-                RowNumber = rowNum,
-                ProductName = item.Name,
+                RowNumber = rows[0],
+                ProductName = firstItem.Name,
                 Success = true,
                 ProductId = product.Id,
                 Warnings = warnings
