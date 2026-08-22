@@ -67,4 +67,25 @@ public class PaymentsController : ControllerBase
             return BadRequest(ApiResponse<CustomerOrderResponse>.ErrorResponse(ex.Message));
         }
     }
+
+    [HttpGet("status/{razorpayOrderId}")]
+    public async Task<ActionResult<ApiResponse<PaymentStatusResponse>>> GetPaymentStatus(string razorpayOrderId)
+    {
+        var result = await _paymentService.GetPaymentStatusAsync(razorpayOrderId);
+
+        if (result == null)
+        {
+            return Ok(ApiResponse<PaymentStatusResponse>.SuccessResponse(new PaymentStatusResponse
+            {
+                Exists = false,
+                Result = null
+            }));
+        }
+
+        return Ok(ApiResponse<PaymentStatusResponse>.SuccessResponse(new PaymentStatusResponse
+        {
+            Exists = true,
+            Result = result
+        }));
+    }
 }

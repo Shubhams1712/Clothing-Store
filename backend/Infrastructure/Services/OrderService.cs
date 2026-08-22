@@ -83,11 +83,21 @@ public class OrderService : IOrderService
                 var paidAmountPaise = (long)(order.TotalAmount * 100);
                 if (razorpayOrderAmount.Value != paidAmountPaise)
                 {
+                    _logger.LogWarning(
+                        "Payment amount mismatch: RazorpayOrder={RazorpayOrderId}, RazorpayAmount={RazorpayAmount}, OrderTotal={OrderTotal}, UserId={UserId}",
+                        request.RazorpayOrderId, razorpayOrderAmount.Value, order.TotalAmount, userId);
                     await transaction.RollbackAsync();
                     throw new InvalidOperationException(
                         $"Payment amount mismatch. Expected {razorpayOrderAmount.Value / 100m:C} but order total is {order.TotalAmount:C}. " +
                         "Please contact support if you believe this is an error.");
                 }
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "Could not verify Razorpay order amount for {RazorpayOrderId}. Proceeding with order total {OrderTotal}. " +
+                    "This may indicate Razorpay API connectivity issues or invalid credentials.",
+                    request.RazorpayOrderId, order.TotalAmount);
             }
 
             order.PaymentMethod = "Razorpay";

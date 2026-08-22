@@ -1,16 +1,16 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { Check, ChevronRight, CreditCard, MapPin, Package, Plus, Truck, ShoppingBag, Wallet } from "lucide-react";
+import { Check, ChevronRight, CreditCard, MapPin, Package, Plus, Truck, ShoppingBag, Wallet, AlertTriangle, RefreshCw, Clock } from "lucide-react";
 import { useCart } from "@/hooks/use-cart";
 import { useAuth } from "@/hooks/use-auth";
 import { useStoreSettings } from "@/hooks/use-store-settings";
 import { addressService, checkoutService, type Address, type CheckoutReviewResult } from "@/services/shopping";
-import { paymentService } from "@/services/payment";
+import { paymentService, type PaymentStatusResult } from "@/services/payment";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -23,6 +23,21 @@ import { LoadingOverlay } from "@/components/feedback/loading-overlay";
 import { AddressForm } from "@/components/storefront/address-form";
 import { formatPrice, getSafeImageUrl } from "@/lib/utils";
 import { toast } from "sonner";
+
+type PaymentState =
+  | "idle"
+  | "creating_order"
+  | "checkout_open"
+  | "waiting_for_payment"
+  | "payment_success"
+  | "payment_failed"
+  | "payment_cancelled"
+  | "payment_timeout"
+  | "payment_unknown"
+  | "payment_verifying"
+  | "order_creating"
+  | "completed"
+  | "error";
 
 declare global {
   interface Window {
@@ -54,6 +69,9 @@ interface RazorpayResponse {
   razorpay_signature: string;
 }
 
+const PAYMENT_TIMEOUT_MS = 5 * 60 * 1000;
+const PAYMENT_POLL_INTERVAL_MS = 5000;
+
 const STEPS = [
   { id: 1, label: "Information", icon: Package },
   { id: 2, label: "Shipping", icon: Truck },
@@ -70,8 +88,33 @@ export default function CheckoutPage() {
   const [shippingMethod, setShippingMethod] = useState("standard");
   const [paymentMethod, setPaymentMethod] = useState("razorpay");
   const [reviewResult, setReviewResult] = useState<CheckoutReviewResult | null>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [addressDialogOpen, setAddressDialogOpen] = useState(false);
+
+  const [paymentState, setPaymentState] = useState<PaymentState>("idle");
+  const [currentRazorpayOrderId, setCurrentRazorpayOrderId] = useState<string | null>(null);
+  const [paymentStatusResult, setPaymentStatusResult] = useState<PaymentStatusResult | null>(null);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+
+  const paymentTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const pollTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const razorpayInstanceRef = useRef<RazorpayInstance | null>(null);
+
+  const isProcessing = ["creating_order", "checkout_open", "waiting_for_payment", "payment_verifying", "order_creating"].includes(paymentState);
+
+  const clearTimers = useCallback(() => {
+    if (paymentTimerRef.current) {
+      clearTimeout(paymentTimerRef.current);
+      paymentTimerRef.current = null;
+    }
+    if (pollTimerRef.current) {
+      clearInterval(pollTimerRef.current);
+      pollTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => clearTimers();
+  }, [clearTimers]);
 
   const { data: addresses = [], isLoading: addressesLoading } = useQuery({
     queryKey: ["addresses"],
@@ -118,10 +161,94 @@ export default function CheckoutPage() {
     });
   }, []);
 
+  const pollPaymentStatus = useCallback(async (orderId: string) => {
+    try {
+      const statusResponse = await paymentService.checkPaymentStatus(orderId);
+      if (statusResponse.exists && statusResponse.result) {
+        const result = statusResponse.result;
+        setPaymentStatusResult(result);
+
+        if (result.paymentStatus === "captured" || result.paymentStatus === "authorized") {
+          return "success";
+        }
+        if (result.paymentStatus === "failed") {
+          return "failed";
+        }
+        if (result.orderStatus === "paid") {
+          return "success";
+        }
+      }
+      return "pending";
+    } catch {
+      return "error";
+    }
+  }, []);
+
+  const handlePaymentTimeout = useCallback(async (orderId: string) => {
+    clearTimers();
+    const status = await pollPaymentStatus(orderId);
+
+    if (status === "success") {
+      setPaymentState("payment_success");
+    } else if (status === "failed") {
+      setPaymentState("payment_failed");
+    } else {
+      setPaymentState("payment_timeout");
+    }
+  }, [clearTimers, pollPaymentStatus]);
+
+  const startPaymentTimeout = useCallback((orderId: string) => {
+    clearTimers();
+    paymentTimerRef.current = setTimeout(() => handlePaymentTimeout(orderId), PAYMENT_TIMEOUT_MS);
+
+    pollTimerRef.current = setInterval(async () => {
+      const status = await pollPaymentStatus(orderId);
+      if (status === "success") {
+        clearTimers();
+        setPaymentState("payment_success");
+      } else if (status === "failed") {
+        clearTimers();
+        setPaymentState("payment_failed");
+      }
+    }, PAYMENT_POLL_INTERVAL_MS);
+  }, [clearTimers, pollPaymentStatus, handlePaymentTimeout]);
+
+  const createOrderAfterPayment = useCallback(async (response: RazorpayResponse) => {
+    setPaymentState("order_creating");
+    try {
+      const orderItems = items.map(i => ({
+        productId: i.productId,
+        variantId: i.variantId !== i.productId ? i.variantId : undefined,
+        quantity: i.quantity,
+      }));
+
+      const order = await paymentService.createOrderAfterPayment({
+        razorpayOrderId: response.razorpay_order_id,
+        razorpayPaymentId: response.razorpay_payment_id,
+        razorpaySignature: response.razorpay_signature,
+        items: orderItems,
+        couponCode: appliedCoupon?.code,
+        shippingAddressId: selectedAddressId,
+        shippingMethod,
+      });
+
+      clearTimers();
+      setPaymentState("completed");
+      toast.success("Payment successful! Order placed.");
+      clearCart();
+      router.push(`/orders/${order.id}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Order creation failed";
+      setPaymentError(message);
+      setPaymentState("error");
+      toast.error("Payment verified but order creation failed. Contact support.");
+    }
+  }, [items, appliedCoupon?.code, selectedAddressId, shippingMethod, clearTimers, clearCart, router]);
+
   const handleRazorpayPayment = async () => {
     const loaded = await loadRazorpayScript();
     if (!loaded) {
-      toast.error("Failed to load payment gateway");
+      toast.error("Failed to load payment gateway. Please refresh and try again.");
       return;
     }
 
@@ -130,9 +257,13 @@ export default function CheckoutPage() {
       return;
     }
 
-    setIsProcessing(true);
+    setPaymentState("creating_order");
+    setPaymentError(null);
+    setPaymentStatusResult(null);
+
     try {
       const paymentOrder = await paymentService.createRazorpayOrder(grandTotal, "INR", `order-${Date.now()}`);
+      setCurrentRazorpayOrderId(paymentOrder.orderId);
 
       const options: RazorpayOptions = {
         key: paymentOrder.keyId,
@@ -142,30 +273,7 @@ export default function CheckoutPage() {
         description: `Order #${paymentOrder.orderId.slice(-8).toUpperCase()}`,
         order_id: paymentOrder.orderId,
         handler: async (response: RazorpayResponse) => {
-          try {
-            const orderItems = items.map(i => ({
-              productId: i.productId,
-              variantId: i.variantId !== i.productId ? i.variantId : undefined,
-              quantity: i.quantity,
-            }));
-
-            const order = await paymentService.createOrderAfterPayment({
-              razorpayOrderId: response.razorpay_order_id,
-              razorpayPaymentId: response.razorpay_payment_id,
-              razorpaySignature: response.razorpay_signature,
-              items: orderItems,
-              couponCode: appliedCoupon?.code,
-              shippingAddressId: selectedAddressId,
-              shippingMethod,
-            });
-
-            toast.success("Payment successful! Order placed.");
-            clearCart();
-            router.push(`/orders/${order.id}`);
-          } catch {
-            toast.error("Payment verified but order creation failed. Contact support.");
-            setIsProcessing(false);
-          }
+          await createOrderAfterPayment(response);
         },
         prefill: {
           name: user ? `${user.firstName} ${user.lastName}` : "",
@@ -175,28 +283,72 @@ export default function CheckoutPage() {
         theme: { color: "#000000" },
         modal: {
           ondismiss: () => {
-            setIsProcessing(false);
-            toast.info("Payment cancelled");
+            if (paymentState !== "completed" && paymentState !== "order_creating") {
+              clearTimers();
+              setPaymentState("payment_cancelled");
+              toast.info("Payment cancelled. You can try again.");
+            }
           },
         },
       };
 
       const razorpay = new window.Razorpay(options);
+      razorpayInstanceRef.current = razorpay;
+
       razorpay.on("payment.failed", (response) => {
+        clearTimers();
         const desc = response.error?.description || "Payment failed. Please try again.";
+        setPaymentError(desc);
+        setPaymentState("payment_failed");
         toast.error(`Payment failed: ${desc}`);
-        setIsProcessing(false);
       });
+
+      setPaymentState("checkout_open");
       razorpay.open();
+
+      setPaymentState("waiting_for_payment");
+      startPaymentTimeout(paymentOrder.orderId);
     } catch (err) {
+      clearTimers();
       const message = err instanceof Error ? err.message : "Failed to initiate payment";
+      setPaymentError(message);
+      setPaymentState("error");
       toast.error(message);
-      setIsProcessing(false);
     }
   };
 
+  const handleCheckPaymentStatus = async () => {
+    if (!currentRazorpayOrderId) return;
+
+    setPaymentState("payment_verifying");
+    try {
+      const status = await pollPaymentStatus(currentRazorpayOrderId);
+
+      if (status === "success") {
+        setPaymentState("payment_success");
+        toast.success("Payment confirmed! Processing your order...");
+      } else if (status === "failed") {
+        setPaymentState("payment_failed");
+      } else {
+        setPaymentState("payment_timeout");
+        toast.info("Payment status still pending. Please wait a few minutes and check again.");
+      }
+    } catch {
+      setPaymentState("payment_timeout");
+      toast.error("Unable to check payment status. Please try again.");
+    }
+  };
+
+  const handleRetryPayment = () => {
+    clearTimers();
+    setPaymentState("idle");
+    setCurrentRazorpayOrderId(null);
+    setPaymentStatusResult(null);
+    setPaymentError(null);
+  };
+
   const handleCodPayment = async () => {
-    setIsProcessing(true);
+    setPaymentState("creating_order");
     try {
       const orderItems = items.map(i => ({
         productId: i.productId,
@@ -211,14 +363,131 @@ export default function CheckoutPage() {
         shippingMethod,
       });
 
+      setPaymentState("completed");
       toast.success("Order placed successfully! Pay on delivery.");
       clearCart();
       router.push(`/orders/${order.id}`);
     } catch {
+      setPaymentError("Failed to place COD order");
+      setPaymentState("error");
       toast.error("Failed to place COD order");
-    } finally {
-      setIsProcessing(false);
     }
+  };
+
+  const renderPaymentRecoveryUI = () => {
+    if (paymentState === "payment_failed") {
+      return (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="p-6 text-center space-y-4">
+            <AlertTriangle className="h-10 w-10 text-red-500 mx-auto" />
+            <div>
+              <p className="font-semibold text-red-800">Payment Failed</p>
+              <p className="text-sm text-red-600 mt-1">
+                {paymentError || "Your payment was not completed. No amount was charged."}
+              </p>
+              {paymentStatusResult?.paymentErrorCode && (
+                <p className="text-xs text-red-500 mt-1">
+                  Error code: {paymentStatusResult.paymentErrorCode}
+                </p>
+              )}
+            </div>
+            <div className="flex gap-3 justify-center">
+              <Button onClick={handleRetryPayment} variant="outline">
+                Try Again
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    if (paymentState === "payment_cancelled") {
+      return (
+        <Card className="border-amber-200 bg-amber-50">
+          <CardContent className="p-6 text-center space-y-4">
+            <AlertTriangle className="h-10 w-10 text-amber-500 mx-auto" />
+            <div>
+              <p className="font-semibold text-amber-800">Payment Cancelled</p>
+              <p className="text-sm text-amber-600 mt-1">
+                You cancelled the payment. No amount was charged.
+              </p>
+            </div>
+            <div className="flex gap-3 justify-center">
+              <Button onClick={handleRetryPayment} variant="outline">
+                Try Again
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    if (paymentState === "payment_timeout" || paymentState === "payment_unknown") {
+      return (
+        <Card className="border-amber-200 bg-amber-50">
+          <CardContent className="p-6 text-center space-y-4">
+            <Clock className="h-10 w-10 text-amber-500 mx-auto" />
+            <div>
+              <p className="font-semibold text-amber-800">Payment Status Unclear</p>
+              <p className="text-sm text-amber-600 mt-1">
+                We could not confirm your payment status. Your payment may have failed or is still being processed.
+              </p>
+              <p className="text-xs text-amber-500 mt-2">
+                Please check your bank/UPI app before trying again. Do not make another payment unless you are sure the first one failed.
+              </p>
+            </div>
+            <div className="flex gap-3 justify-center">
+              <Button onClick={handleCheckPaymentStatus} variant="outline">
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Check Payment Status
+              </Button>
+              <Button onClick={handleRetryPayment} variant="outline">
+                Try Different Payment
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    if (paymentState === "payment_verifying") {
+      return (
+        <Card className="border-blue-200 bg-blue-50">
+          <CardContent className="p-6 text-center space-y-4">
+            <RefreshCw className="h-10 w-10 text-blue-500 mx-auto animate-spin" />
+            <div>
+              <p className="font-semibold text-blue-800">Checking Payment Status...</p>
+              <p className="text-sm text-blue-600 mt-1">
+                Please wait while we verify your payment.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    if (paymentState === "error") {
+      return (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="p-6 text-center space-y-4">
+            <AlertTriangle className="h-10 w-10 text-red-500 mx-auto" />
+            <div>
+              <p className="font-semibold text-red-800">Something Went Wrong</p>
+              <p className="text-sm text-red-600 mt-1">
+                {paymentError || "An unexpected error occurred."}
+              </p>
+            </div>
+            <div className="flex gap-3 justify-center">
+              <Button onClick={handleRetryPayment} variant="outline">
+                Try Again
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    return null;
   };
 
   if (items.length === 0) {
@@ -441,6 +710,8 @@ export default function CheckoutPage() {
           {currentStep === 3 && (
             <div className="space-y-6">
               <h2 className="text-xl font-bold">Payment Method</h2>
+
+              {renderPaymentRecoveryUI()}
 
               <RadioGroup value={paymentMethod} onValueChange={setPaymentMethod} className="space-y-3">
                 <label className={`flex cursor-pointer items-center gap-3 rounded-lg border p-4 transition-colors ${

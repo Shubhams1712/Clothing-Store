@@ -35,33 +35,52 @@ public class PaymentService : IPaymentService
 
         amount = Math.Round(amount, 2, MidpointRounding.AwayFromZero);
 
+        var amountPaise = (long)(amount * 100);
+        var isTestMode = keyId.StartsWith("rzp_test");
+
+        _logger.LogInformation(
+            "Razorpay payment initiation: UserId={UserId}, Amount={Amount}, AmountPaise={AmountPaise}, Currency={Currency}, Receipt={Receipt}, Mode={Mode}",
+            userId, amount, amountPaise, currency, receipt ?? "none", isTestMode ? "TEST" : "LIVE");
+
+        if (isTestMode)
+        {
+            _logger.LogWarning(
+                "Razorpay TEST mode active. UPI QR payments will fail with real UPI apps. " +
+                "Use Razorpay test dashboard to simulate payments, or switch to LIVE keys for real transactions. OrderId={Receipt}",
+                receipt ?? "none");
+        }
+
         try
         {
             var client = new RazorpayClient(keyId, keySecret);
 
             var orderRequest = new Dictionary<string, object>
             {
-                { "amount", (long)(amount * 100) },
+                { "amount", amountPaise },
                 { "currency", currency },
                 { "receipt", receipt ?? Guid.NewGuid().ToString() }
             };
 
-            _logger.LogInformation("Creating Razorpay order: Amount={Amount} ({AmountPaise} paise), Currency={Currency}, Mode={Mode}",
-                amount, (long)(amount * 100), currency, keyId.StartsWith("rzp_test") ? "TEST" : "LIVE");
-
             var order = client.Order.Create(orderRequest);
+
+            var orderId = (string)order["id"];
+            _logger.LogInformation(
+                "Razorpay order created: OrderId={RazorpayOrderId}, AmountPaise={AmountPaise}, Currency={Currency}, Mode={Mode}",
+                orderId, amountPaise, currency, isTestMode ? "TEST" : "LIVE");
 
             return new PaymentOrderResponse
             {
-                OrderId = order["id"].ToString()!,
-                Amount = (long)(amount * 100),
+                OrderId = orderId,
+                Amount = amountPaise,
                 Currency = currency,
                 KeyId = keyId
             };
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to create Razorpay order for amount {Amount}", amount);
+            _logger.LogError(ex,
+                "Failed to create Razorpay order: UserId={UserId}, Amount={Amount}, AmountPaise={AmountPaise}, Currency={Currency}, Mode={Mode}, Error={Error}",
+                userId, amount, amountPaise, currency, isTestMode ? "TEST" : "LIVE", ex.Message);
             throw new InvalidOperationException($"Failed to create payment order: {ex.Message}");
         }
     }
@@ -117,6 +136,62 @@ public class PaymentService : IPaymentService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to fetch Razorpay order amount for {OrderId}", razorpayOrderId);
+            return null;
+        }
+    }
+
+    public async Task<PaymentStatusResult?> GetPaymentStatusAsync(string razorpayOrderId)
+    {
+        try
+        {
+            var (keyId, keySecret) = await GetRazorpayCredentialsAsync();
+            if (string.IsNullOrEmpty(keyId) || string.IsNullOrEmpty(keySecret))
+                return null;
+
+            var client = new RazorpayClient(keyId, keySecret);
+            var order = client.Order.Fetch(razorpayOrderId);
+
+            if (order == null)
+                return null;
+
+            var result = new PaymentStatusResult
+            {
+                OrderId = razorpayOrderId,
+                OrderStatus = order["status"]?.ToString() ?? "unknown",
+                OrderAmount = order["amount"] != null ? Convert.ToInt64(order["amount"]) : 0
+            };
+
+            if (order.Attributes.ContainsKey("payments"))
+            {
+                var payments = order["payments"] as IEnumerable<object>;
+                if (payments != null)
+                {
+                    var paymentList = payments.ToList();
+                    if (paymentList.Count > 0)
+                    {
+                        var lastPayment = paymentList[^1] as Dictionary<string, object>;
+                        if (lastPayment != null)
+                        {
+                            result.PaymentId = lastPayment["id"]?.ToString();
+                            result.PaymentStatus = lastPayment["status"]?.ToString();
+                            result.PaymentMethod = lastPayment["method"]?.ToString();
+                            result.PaymentAmount = lastPayment["amount"] != null ? Convert.ToInt64(lastPayment["amount"]) : null;
+                            result.PaymentCaptured = lastPayment["captured"]?.ToString();
+
+                            if (lastPayment.ContainsKey("error_code"))
+                                result.PaymentErrorCode = lastPayment["error_code"]?.ToString();
+                            if (lastPayment.ContainsKey("error_description"))
+                                result.PaymentErrorDescription = lastPayment["error_description"]?.ToString();
+                        }
+                    }
+                }
+            }
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to fetch payment status for order {OrderId}", razorpayOrderId);
             return null;
         }
     }

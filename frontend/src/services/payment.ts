@@ -7,6 +7,24 @@ export interface PaymentOrder {
   keyId: string;
 }
 
+export interface PaymentStatusResult {
+  orderId: string;
+  orderStatus: string;
+  orderAmount: number;
+  paymentId: string | null;
+  paymentStatus: string | null;
+  paymentMethod: string | null;
+  paymentAmount: number | null;
+  paymentCaptured: string | null;
+  paymentErrorCode: string | null;
+  paymentErrorDescription: string | null;
+}
+
+export interface PaymentStatusResponse {
+  exists: boolean;
+  result: PaymentStatusResult | null;
+}
+
 export interface OrderItem {
   productId: string;
   variantId?: string;
@@ -130,6 +148,11 @@ export const paymentService = {
 
   async createCodOrder(request: CreateCodOrderRequest): Promise<CustomerOrder> {
     const response = await api.post("/api/payments/cod", request);
+    return response.data.data;
+  },
+
+  async checkPaymentStatus(razorpayOrderId: string): Promise<PaymentStatusResponse> {
+    const response = await api.get(`/api/payments/status/${razorpayOrderId}`);
     return response.data.data;
   },
 };

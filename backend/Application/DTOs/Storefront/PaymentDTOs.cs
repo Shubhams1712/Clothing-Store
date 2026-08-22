@@ -163,3 +163,23 @@ public class InvoiceItemResponse
     public decimal UnitPrice { get; set; }
     public decimal TotalPrice { get; set; }
 }
+
+public class PaymentStatusResult
+{
+    public string OrderId { get; set; } = string.Empty;
+    public string OrderStatus { get; set; } = string.Empty;
+    public long OrderAmount { get; set; }
+    public string? PaymentId { get; set; }
+    public string? PaymentStatus { get; set; }
+    public string? PaymentMethod { get; set; }
+    public long? PaymentAmount { get; set; }
+    public string? PaymentCaptured { get; set; }
+    public string? PaymentErrorCode { get; set; }
+    public string? PaymentErrorDescription { get; set; }
+}
+
+public class PaymentStatusResponse
+{
+    public PaymentStatusResult? Result { get; set; }
+    public bool Exists { get; set; }
+}

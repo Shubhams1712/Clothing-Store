@@ -8,5 +8,6 @@ public interface IPaymentService
     Task<bool> VerifyPaymentAsync(string razorpayOrderId, string razorpayPaymentId, string razorpaySignature);
     Task<string> GetRazorpayKeyIdAsync();
     Task<long?> GetRazorpayOrderAmountAsync(string razorpayOrderId);
+    Task<PaymentStatusResult?> GetPaymentStatusAsync(string razorpayOrderId);
     bool VerifyWebhookSignature(string payload, string signature);
 }
