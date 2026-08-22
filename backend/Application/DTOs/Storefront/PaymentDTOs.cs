@@ -17,7 +17,7 @@ public class CreatePaymentOrderRequest
 public class PaymentOrderResponse
 {
     public string OrderId { get; set; } = string.Empty;
-    public decimal Amount { get; set; }
+    public long Amount { get; set; }
     public string Currency { get; set; } = string.Empty;
     public string KeyId { get; set; } = string.Empty;
 }

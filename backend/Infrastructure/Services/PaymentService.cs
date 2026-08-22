@@ -54,7 +54,7 @@ public class PaymentService : IPaymentService
             return new PaymentOrderResponse
             {
                 OrderId = order["id"].ToString()!,
-                Amount = amount,
+                Amount = (long)(amount * 100),
                 Currency = currency,
                 KeyId = keyId
             };

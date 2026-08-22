@@ -136,7 +136,7 @@ export default function CheckoutPage() {
 
       const options: RazorpayOptions = {
         key: paymentOrder.keyId,
-        amount: paymentOrder.amount * 100,
+        amount: paymentOrder.amount,
         currency: paymentOrder.currency,
         name: storeName,
         description: `Order #${paymentOrder.orderId.slice(-8).toUpperCase()}`,
